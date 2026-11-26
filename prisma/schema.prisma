@@ -1,0 +1,96 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum PedidoStatus {
+  RECEBIDO
+  PREPARANDO
+  PRONTO
+  ENTREGUE
+  CANCELADO
+}
+
+model Produto {
+  id              String       @id @default(cuid())
+  nome            String
+  descricao       String       @default("")
+  preco           Int          // Preço em centavos
+  foto            String?
+  ativo           Boolean      @default(true)
+  ordem           Int          @default(0)
+  controlaEstoque Boolean      @default(false)
+  estoque         Int          @default(0)
+  estoqueMinimo   Int          @default(5)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  itens           ItemPedido[]
+
+  @@index([ativo, ordem])
+}
+
+model Mesa {
+  id        String   @id @default(cuid())
+  numero    Int      @unique
+  ativa     Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ativa, numero])
+}
+
+model Pedido {
+  id             String       @id @default(cuid())
+  numero         Int          @unique @default(autoincrement())
+  idempotencyKey String       @unique
+  nomeCliente    String
+  telefone       String
+  mesaNumero     Int
+  observacao     String?
+  status         PedidoStatus @default(RECEBIDO)
+  total          Int          // Total em centavos
+  ip             String
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  itens          ItemPedido[]
+
+  @@index([status, createdAt])
+  @@index([telefone, status])
+  @@index([ip, status])
+  @@index([mesaNumero, status])
+}
+
+model ItemPedido {
+  id            String   @id @default(cuid())
+  pedidoId      String
+  pedido        Pedido   @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+  produtoId     String?
+  produto       Produto? @relation(fields: [produtoId], references: [id], onDelete: SetNull)
+  nomeSnapshot  String
+  precoSnapshot Int      // Preço unitário em centavos no momento do pedido
+  quantidade    Int
+
+  @@index([pedidoId])
+  @@index([produtoId])
+}
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  userAgent String?
+  createdAt DateTime @default(now())
+}
+
+model LoginAttempt {
+  id        String   @id @default(cuid())
+  ip        String
+  createdAt DateTime @default(now())
+
+  @@index([ip, createdAt])
+}

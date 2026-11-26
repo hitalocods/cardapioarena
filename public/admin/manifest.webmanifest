@@ -1,0 +1,31 @@
+{
+  "name": "Painel Arena Home Beach",
+  "short_name": "AHB Painel",
+  "description": "Painel administrativo de pedidos e cardápio da Arena Home Beach",
+  "start_url": "/admin?tab=pedidos",
+  "scope": "/admin",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#a2cf9c",
+  "background_color": "#f5f8f4",
+  "icons": [
+    {
+      "src": "/admin-icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/admin-icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/admin-icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

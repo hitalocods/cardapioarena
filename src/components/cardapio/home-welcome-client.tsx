@@ -128,30 +128,37 @@ export function HomeWelcomeClient({
     );
   }
 
+  const handleInputFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+    const el = e.currentTarget;
+    window.setTimeout(() => {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 150);
+  };
+
   const canSubmit =
     nomeInput.trim().length >= 2 && normalizeBrPhone(telefoneInput).length >= 10;
 
   return (
-    <main className="arena-grid relative grid min-h-dvh place-items-center overflow-hidden p-4 text-[var(--foreground)]">
+    <main className="arena-grid relative flex min-h-dvh flex-col items-center justify-start overflow-y-auto px-4 pb-16 pt-6 text-[var(--foreground)] sm:justify-center sm:py-8">
       <div className="pointer-events-none absolute inset-x-0 top-0 h-64 bg-[radial-gradient(ellipse_at_50%_0%,rgba(162,207,156,0.45),transparent_70%)]" />
 
-      <div className="glass-card relative w-full max-w-md p-6 text-center shadow-[var(--shadow-elevated)] sm:max-w-lg sm:p-8">
-        <div className="mx-auto mb-5 h-28 w-28 overflow-hidden rounded-full border-2 border-[var(--brand-primary-strong)]/40 bg-white shadow-[0_0_40px_rgba(162,207,156,0.5)]">
+      <div className="glass-card relative w-full max-w-md p-5 text-center shadow-[var(--shadow-elevated)] sm:max-w-lg sm:p-8">
+        <div className="mx-auto mb-3 h-20 w-20 overflow-hidden rounded-full border-2 border-[var(--brand-primary-strong)]/40 bg-white shadow-[0_0_36px_rgba(162,207,156,0.45)] sm:mb-5 sm:h-28 sm:w-28">
           <ArenaEmblem />
         </div>
 
         <p className="text-xs font-bold uppercase tracking-[0.22em] text-[var(--brand-primary-strong)]">
           ARENA HOME BEACH
         </p>
-        <h1 className="mt-2 text-2xl font-black tracking-tight text-[var(--foreground)] sm:text-3xl">
+        <h1 className="mt-1.5 text-2xl font-black tracking-tight text-[var(--foreground)] sm:mt-2 sm:text-3xl">
           Cardápio Digital
         </h1>
-        <p className="mt-2 text-sm text-[var(--muted-foreground)]">
+        <p className="mt-1.5 text-sm text-[var(--muted-foreground)] sm:mt-2">
           Peça bebidas e lanches direto da sua mesa.
         </p>
 
         {savedCustomer ? (
-          <div className="mt-6 space-y-3">
+          <div className="mt-5 space-y-3 sm:mt-6">
             <p className="text-base font-bold text-[var(--foreground)]">
               Olá, {savedCustomer.nomeCliente}
             </p>
@@ -171,17 +178,18 @@ export function HomeWelcomeClient({
             </button>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="mt-6 space-y-3 text-left">
+          <form onSubmit={handleSubmit} className="mt-5 space-y-3 text-left sm:mt-6">
             <Input
               aria-label="Nome"
               value={nomeInput}
+              onFocus={handleInputFocus}
               onChange={(e) => {
                 setFormError(null);
                 setNomeInput(e.target.value);
               }}
               placeholder="Qual seu nome?"
               maxLength={80}
-              className="h-12 text-base"
+              className="h-12 scroll-mb-36 text-[16px]"
               required
             />
             <Input
@@ -189,12 +197,13 @@ export function HomeWelcomeClient({
               type="tel"
               inputMode="numeric"
               value={telefoneInput}
+              onFocus={handleInputFocus}
               onChange={(e) => {
                 setFormError(null);
                 setTelefoneInput(formatBrPhoneMask(e.target.value));
               }}
               placeholder="Qual seu telefone? (com DDD)"
-              className="h-12 text-base"
+              className="h-12 scroll-mb-36 text-[16px]"
               required
             />
 
@@ -214,7 +223,7 @@ export function HomeWelcomeClient({
           </form>
         )}
 
-        <div className="mt-6 border-t border-[var(--border)] pt-4">
+        <div className="mt-5 border-t border-[var(--border)] pt-4 sm:mt-6">
           <Link href="/admin" className="block w-full">
             <Button
               type="button"

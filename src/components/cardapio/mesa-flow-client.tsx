@@ -129,15 +129,22 @@ export function MesaFlowClient({
     );
   }
 
+  const handleInputFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+    const el = e.currentTarget;
+    window.setTimeout(() => {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 150);
+  };
+
   const canSubmit =
     nomeInput.trim().length >= 2 && normalizeBrPhone(telefoneInput).length >= 10;
 
   return (
-    <main className="arena-grid relative min-h-dvh overflow-hidden">
+    <main className="arena-grid relative flex min-h-dvh flex-col items-center justify-start overflow-y-auto px-5 pb-16 pt-6 sm:justify-center sm:py-10">
       <div className="pointer-events-none absolute inset-x-0 top-0 h-64 bg-[radial-gradient(ellipse_at_50%_0%,rgba(162,207,156,0.45),transparent_70%)]" />
 
-      <section className="relative mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center px-5 py-10">
-        <div className="mx-auto mb-8 h-36 w-36 overflow-hidden rounded-full border-2 border-[var(--brand-primary-strong)]/40 bg-white/95 shadow-[0_0_48px_rgba(162,207,156,0.55)]">
+      <section className="relative mx-auto flex w-full max-w-md flex-col justify-center">
+        <div className="mx-auto mb-4 h-24 w-24 overflow-hidden rounded-full border-2 border-[var(--brand-primary-strong)]/40 bg-white/95 shadow-[0_0_40px_rgba(162,207,156,0.5)] sm:mb-8 sm:h-36 sm:w-36">
           <ArenaEmblem />
         </div>
 
@@ -145,19 +152,19 @@ export function MesaFlowClient({
           <p className="text-sm font-medium text-[var(--muted-foreground)]">
             Bem-vindo(a) à
           </p>
-          <h1 className="mt-2 text-4xl font-black tracking-wide text-[var(--foreground)] sm:text-5xl">
+          <h1 className="mt-1.5 text-3xl font-black tracking-wide text-[var(--foreground)] sm:mt-2 sm:text-5xl">
             ARENA
           </h1>
-          <p className="mt-1 text-xl font-bold tracking-[0.16em] text-[var(--brand-primary-strong)]">
+          <p className="mt-1 text-lg font-bold tracking-[0.16em] text-[var(--brand-primary-strong)] sm:text-xl">
             HOME BEACH
           </p>
-          <div className="mt-5 inline-flex items-center rounded-full border border-[var(--brand-primary-strong)]/35 bg-[var(--brand-primary)]/35 px-4 py-1 text-sm font-bold text-[var(--brand-primary-foreground)]">
+          <div className="mt-3.5 inline-flex items-center rounded-full border border-[var(--brand-primary-strong)]/35 bg-[var(--brand-primary)]/35 px-4 py-1 text-sm font-bold text-[var(--brand-primary-foreground)] sm:mt-5">
             Mesa {mesaNumero}
           </div>
         </div>
 
         {savedCustomer ? (
-          <div className="mt-8 space-y-3 text-center">
+          <div className="mt-6 space-y-3 text-center sm:mt-8">
             <p className="text-lg font-bold text-[var(--foreground)]">
               Olá, {savedCustomer.nomeCliente}
             </p>
@@ -177,17 +184,18 @@ export function MesaFlowClient({
             </button>
           </div>
         ) : (
-          <form onSubmit={handleSubmitWelcome} className="mt-8 space-y-3">
+          <form onSubmit={handleSubmitWelcome} className="mt-6 space-y-3 sm:mt-8">
             <Input
               aria-label="Nome"
               value={nomeInput}
+              onFocus={handleInputFocus}
               onChange={(e) => {
                 setFormError(null);
                 setNomeInput(e.target.value);
               }}
               placeholder="Qual seu nome?"
               maxLength={80}
-              className="h-12 text-base"
+              className="h-12 scroll-mb-36 text-[16px]"
               required
             />
             <Input
@@ -195,12 +203,13 @@ export function MesaFlowClient({
               type="tel"
               inputMode="numeric"
               value={telefoneInput}
+              onFocus={handleInputFocus}
               onChange={(e) => {
                 setFormError(null);
                 setTelefoneInput(formatBrPhoneMask(e.target.value));
               }}
               placeholder="Qual seu telefone? (com DDD)"
-              className="h-12 text-base"
+              className="h-12 scroll-mb-36 text-[16px]"
               required
             />
 

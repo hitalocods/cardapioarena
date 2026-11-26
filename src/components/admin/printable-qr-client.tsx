@@ -80,8 +80,8 @@ export function PrintableQrClient({
                 <p className="text-sm font-bold text-[var(--foreground)]">
                   Aponte a câmera para pedir
                 </p>
-                <p className="mt-0.5 break-all text-[11px] font-mono text-[var(--muted-foreground)]">
-                  {mesaUrl}
+                <p className="mt-1 text-xs font-semibold tracking-wide text-[var(--muted-foreground)]">
+                  Atlas Software · www.atlassoftware.org
                 </p>
               </div>
             );

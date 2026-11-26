@@ -141,8 +141,8 @@ export function QrcodeTab() {
                   <QRCodeSVG value={mesaUrl} size={160} level="M" includeMargin />
                 </div>
 
-                <p className="w-full truncate text-xs font-mono text-[var(--muted-foreground)]">
-                  {mesaUrl}
+                <p className="w-full truncate text-xs font-semibold text-[var(--muted-foreground)]">
+                  Atlas Software · www.atlassoftware.org
                 </p>
 
                 <Button

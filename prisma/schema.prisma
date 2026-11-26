@@ -18,6 +18,7 @@ enum PedidoStatus {
 model Produto {
   id              String       @id @default(cuid())
   nome            String
+  categoria       String       @default("Geral")
   descricao       String       @default("")
   preco           Int          // Preço em centavos
   foto            String?
@@ -31,6 +32,7 @@ model Produto {
   itens           ItemPedido[]
 
   @@index([ativo, ordem])
+  @@index([ativo, categoria, ordem])
 }
 
 model Mesa {

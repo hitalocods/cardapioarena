@@ -5,6 +5,7 @@ import Link from "next/link";
 import { QRCodeSVG } from "qrcode.react";
 import { ArrowLeft, Printer, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { resolveQrBaseUrl } from "@/lib/qr-url";
 
 const emptySubscribe = () => () => {};
 
@@ -20,7 +21,7 @@ export function PrintableQrClient({
     () => window.location.origin,
     () => "http://localhost:3000"
   );
-  const baseUrl = (initialBaseUrl?.trim() || originUrl).replace(/\/+$/, "");
+  const baseUrl = resolveQrBaseUrl(initialBaseUrl, originUrl);
 
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-5xl flex-col gap-6 px-4 py-6">

@@ -17,6 +17,7 @@ async function HomeLoader() {
       select: {
         id: true,
         nome: true,
+        categoria: true,
         descricao: true,
         preco: true,
         foto: true,

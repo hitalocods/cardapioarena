@@ -11,12 +11,14 @@ const fotoSchema = z
     (val) =>
       val === "" ||
       val.startsWith("/api/blob?path=") ||
+      val.startsWith("/produtos/") ||
       /^https?:\/\/.+/i.test(val),
     "URL da foto inválida."
   );
 
 const produtoSchema = z.object({
   nome: z.string().trim().min(1, "Informe o nome do produto.").max(80),
+  categoria: z.string().trim().min(1).max(40).optional().default("Geral"),
   descricao: z.string().trim().max(240).optional().default(""),
   preco: z.number().int().min(0, "Preço inválido.").max(1000000),
   foto: fotoSchema.optional().nullable(),
@@ -71,6 +73,7 @@ export async function POST(request: Request) {
     const produto = await db.produto.create({
       data: {
         nome: parsed.data.nome,
+        categoria: parsed.data.categoria,
         descricao: parsed.data.descricao,
         preco: parsed.data.preco,
         foto: parsed.data.foto ? parsed.data.foto : null,

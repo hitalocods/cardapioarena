@@ -3,10 +3,11 @@
 import * as React from "react";
 import Link from "next/link";
 import { QRCodeSVG } from "qrcode.react";
-import { Check, Copy, Printer } from "lucide-react";
+import { Check, Copy, Globe, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { isValidHttpUrl, resolveQrBaseUrl } from "@/lib/qr-url";
 import type { AdminMesa } from "@/components/admin/mesas-tab";
 
 const emptySubscribe = () => () => {};
@@ -18,14 +19,19 @@ export function QrcodeTab() {
     () => window.location.origin,
     () => "http://localhost:3000"
   );
-  const defaultBaseUrl = (ENV_SITE_URL || originUrl).replace(/\/+$/, "");
+  const defaultBaseUrl = resolveQrBaseUrl(ENV_SITE_URL, originUrl);
 
   const [customBaseUrl, setCustomBaseUrl] = React.useState<string | null>(null);
   const [mesas, setMesas] = React.useState<AdminMesa[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [copiedMesa, setCopiedMesa] = React.useState<number | null>(null);
 
-  const baseUrl = (customBaseUrl ?? defaultBaseUrl).replace(/\/+$/, "");
+  const rawInputUrl = customBaseUrl ?? defaultBaseUrl;
+  const baseUrl = resolveQrBaseUrl(rawInputUrl, originUrl);
+  const customInputInvalid =
+    customBaseUrl !== null &&
+    customBaseUrl.trim() !== "" &&
+    !isValidHttpUrl(customBaseUrl);
 
   React.useEffect(() => {
     let active = true;
@@ -81,15 +87,31 @@ export function QrcodeTab() {
           </Link>
         </div>
 
-        <div className="max-w-md">
+        <div className="max-w-xl">
           <Label htmlFor="qr-base-url">URL base dos QR Codes</Label>
-          <Input
-            id="qr-base-url"
-            className="mt-1.5"
-            value={customBaseUrl ?? defaultBaseUrl}
-            onChange={(e) => setCustomBaseUrl(e.target.value)}
-            placeholder="https://cardapio.arenahomebeach.com.br"
-          />
+          <div className="mt-1.5 flex flex-wrap gap-2">
+            <Input
+              id="qr-base-url"
+              className="flex-1 min-w-60"
+              value={rawInputUrl}
+              onChange={(e) => setCustomBaseUrl(e.target.value)}
+              placeholder="https://cardapioarena-delta.vercel.app"
+            />
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setCustomBaseUrl(originUrl)}
+            >
+              <Globe className="h-4 w-4" />
+              Usar domínio atual
+            </Button>
+          </div>
+          {customInputInvalid && (
+            <p className="mt-1.5 text-xs font-semibold text-[var(--destructive)]">
+              Digite uma URL completa começando com https:// (usando o domínio
+              atual nos QR Codes enquanto isso).
+            </p>
+          )}
         </div>
       </div>
 

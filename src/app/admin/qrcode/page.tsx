@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { db } from "@/lib/db";
 import { isAdminAuthenticated } from "@/lib/auth";
+import { isValidHttpUrl } from "@/lib/qr-url";
 import { PrintableQrClient } from "@/components/admin/printable-qr-client";
 
 async function PrintableQrGate({
@@ -25,8 +26,13 @@ async function PrintableQrGate({
     }),
   ]);
 
-  const initialBaseUrl =
-    url?.trim() || process.env.NEXT_PUBLIC_SITE_URL?.trim() || undefined;
+  const paramUrl = url?.trim();
+  const envUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+  const initialBaseUrl = isValidHttpUrl(paramUrl)
+    ? paramUrl
+    : isValidHttpUrl(envUrl)
+    ? envUrl
+    : undefined;
 
   return (
     <PrintableQrClient mesas={mesas} initialBaseUrl={initialBaseUrl} />

@@ -11,12 +11,14 @@ const fotoSchema = z
     (val) =>
       val === "" ||
       val.startsWith("/api/blob?path=") ||
+      val.startsWith("/produtos/") ||
       /^https?:\/\/.+/i.test(val),
     "URL da foto inválida."
   );
 
 const updateProdutoSchema = z.object({
   nome: z.string().trim().min(1).max(80).optional(),
+  categoria: z.string().trim().min(1).max(40).optional(),
   descricao: z.string().trim().max(240).optional(),
   preco: z.number().int().min(0).max(1000000).optional(),
   foto: fotoSchema.optional().nullable(),
@@ -57,6 +59,7 @@ export async function PATCH(
       where: { id },
       data: {
         ...(data.nome !== undefined ? { nome: data.nome } : {}),
+        ...(data.categoria !== undefined ? { categoria: data.categoria } : {}),
         ...(data.descricao !== undefined ? { descricao: data.descricao } : {}),
         ...(data.preco !== undefined ? { preco: data.preco } : {}),
         ...(data.foto !== undefined

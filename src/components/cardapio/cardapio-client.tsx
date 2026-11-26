@@ -4,15 +4,20 @@ import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
+  Beer,
   CheckCircle2,
   Clock,
+  CupSoda,
+  Flame,
   Loader2,
   Minus,
   Plus,
   QrCode,
+  Sandwich,
   ShoppingBag,
   Sun,
   UtensilsCrossed,
+  Wine,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -25,6 +30,7 @@ import { formatCurrency } from "@/lib/format";
 export interface CardapioProduto {
   id: string;
   nome: string;
+  categoria: string;
   descricao: string;
   preco: number;
   foto: string | null;
@@ -47,6 +53,26 @@ const LAST_ORDER_STORAGE_KEY = "ahb_last_order_v1";
 const MAX_UNITS_PER_ITEM = 20;
 const MAX_TOTAL_UNITS = 30;
 
+function CategoryPlaceholderIcon({ categoria }: { categoria: string }) {
+  const key = categoria.toLowerCase();
+  if (key.includes("cerveja")) {
+    return <Beer className="h-7 w-7 opacity-70" />;
+  }
+  if (key.includes("dose")) {
+    return <Wine className="h-7 w-7 opacity-70" />;
+  }
+  if (key.includes("bebida")) {
+    return <CupSoda className="h-7 w-7 opacity-70" />;
+  }
+  if (key.includes("lanche")) {
+    return <Sandwich className="h-7 w-7 opacity-70" />;
+  }
+  if (key.includes("tira")) {
+    return <Flame className="h-7 w-7 opacity-70" />;
+  }
+  return <UtensilsCrossed className="h-7 w-7 opacity-70" />;
+}
+
 export function CardapioClient({
   initialProdutos,
   mesaNumero,
@@ -65,6 +91,8 @@ export function CardapioClient({
 
   const [produtos, setProdutos] =
     React.useState<CardapioProduto[]>(initialProdutos);
+  const [selectedCategoria, setSelectedCategoria] =
+    React.useState<string>("Todos");
   const [cart, setCart] = React.useState<Record<string, number>>({});
   const [checkoutOpen, setCheckoutOpen] = React.useState(false);
   const [observacao, setObservacao] = React.useState("");
@@ -126,6 +154,30 @@ export function CardapioClient({
       // Ignora falha silenciosa de atualização
     }
   }, []);
+
+  const categorias = React.useMemo(() => {
+    const seen = new Set<string>();
+    const list: string[] = [];
+    for (const p of produtos) {
+      const cat = p.categoria || "Geral";
+      if (!seen.has(cat)) {
+        seen.add(cat);
+        list.push(cat);
+      }
+    }
+    return list;
+  }, [produtos]);
+
+  const groupedSections = React.useMemo(() => {
+    const targetCats =
+      selectedCategoria === "Todos" ? categorias : [selectedCategoria];
+    return targetCats
+      .map((cat) => ({
+        categoria: cat,
+        itens: produtos.filter((p) => (p.categoria || "Geral") === cat),
+      }))
+      .filter((sec) => sec.itens.length > 0);
+  }, [produtos, categorias, selectedCategoria]);
 
   const totalUnits = React.useMemo(
     () => Object.values(cart).reduce((sum, q) => sum + q, 0),
@@ -287,7 +339,7 @@ export function CardapioClient({
       ) : null}
 
       {/* Cabeçalho do cardápio */}
-      <header className="glass-card mb-5 p-5">
+      <header className="glass-card mb-4 p-5">
         <div className="flex items-start justify-between gap-3">
           <div>
             <div className="inline-flex items-center gap-1.5 rounded-full bg-[var(--brand-primary-soft)] px-3 py-1 text-xs font-semibold text-[var(--brand-primary-foreground)]">
@@ -329,6 +381,32 @@ export function CardapioClient({
         )}
       </header>
 
+      {/* Filtro rápido de categorias */}
+      {categorias.length > 1 && (
+        <nav
+          aria-label="Categorias do cardápio"
+          className="mb-4 flex gap-2 overflow-x-auto pb-1"
+        >
+          {["Todos", ...categorias].map((cat) => {
+            const active = selectedCategoria === cat;
+            return (
+              <button
+                key={cat}
+                type="button"
+                onClick={() => setSelectedCategoria(cat)}
+                className={`shrink-0 rounded-full border px-4 py-2 text-xs font-bold transition cursor-pointer ${
+                  active
+                    ? "border-[var(--brand-primary-strong)] bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)] shadow-xs"
+                    : "border-[var(--border)] bg-white/80 text-[var(--muted-foreground)] hover:bg-white hover:text-[var(--foreground)]"
+                }`}
+              >
+                {cat}
+              </button>
+            );
+          })}
+        </nav>
+      )}
+
       {/* Lista de itens */}
       {loadError ? (
         <div className="glass-card p-6 text-center">
@@ -353,111 +431,122 @@ export function CardapioClient({
           </p>
         </div>
       ) : (
-        <main className="flex flex-col gap-3.5">
-          {produtos.map((produto) => {
-            const qty = cart[produto.id] ?? 0;
-            const outOfStock = produto.controlaEstoque && produto.estoque <= 0;
-            const maxForProduct = produto.controlaEstoque
-              ? Math.min(MAX_UNITS_PER_ITEM, produto.estoque)
-              : MAX_UNITS_PER_ITEM;
-            const canAdd =
-              isOrderMode &&
-              !outOfStock &&
-              qty < maxForProduct &&
-              totalUnits < MAX_TOTAL_UNITS;
+        <main className="flex flex-col gap-6">
+          {groupedSections.map((section) => (
+            <section key={section.categoria} className="flex flex-col gap-3">
+              <h2 className="px-1 text-sm font-black uppercase tracking-wider text-[var(--brand-primary-strong)]">
+                {section.categoria}
+              </h2>
 
-            return (
-              <article
-                key={produto.id}
-                className={`glass-card flex items-center gap-4 p-3.5 transition-opacity ${
-                  outOfStock ? "opacity-65" : ""
-                }`}
-              >
-                {/* Foto */}
-                <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border)]">
-                  {produto.foto ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={produto.foto}
-                      alt={produto.nome}
-                      loading="lazy"
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center text-[var(--brand-primary-strong)]">
-                      <UtensilsCrossed className="h-7 w-7 opacity-60" />
-                    </div>
-                  )}
-                </div>
+              {section.itens.map((produto) => {
+                const qty = cart[produto.id] ?? 0;
+                const outOfStock =
+                  produto.controlaEstoque && produto.estoque <= 0;
+                const maxForProduct = produto.controlaEstoque
+                  ? Math.min(MAX_UNITS_PER_ITEM, produto.estoque)
+                  : MAX_UNITS_PER_ITEM;
+                const canAdd =
+                  isOrderMode &&
+                  !outOfStock &&
+                  qty < maxForProduct &&
+                  totalUnits < MAX_TOTAL_UNITS;
 
-                {/* Conteúdo */}
-                <div className="flex min-w-0 flex-1 flex-col justify-between gap-2">
-                  <div>
-                    <div className="flex items-start justify-between gap-2">
-                      <h2 className="text-base font-bold leading-snug text-[var(--foreground)]">
-                        {produto.nome}
-                      </h2>
-                      {outOfStock && (
-                        <Badge variant="destructive" className="shrink-0">
-                          Esgotado
-                        </Badge>
+                return (
+                  <article
+                    key={produto.id}
+                    className={`glass-card flex items-center gap-4 p-3.5 transition-opacity ${
+                      outOfStock ? "opacity-65" : ""
+                    }`}
+                  >
+                    {/* Foto ou fundo da cor da Arena */}
+                    <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-2xl border border-[#a2cf9c]/60 bg-gradient-to-br from-[#eaf5e8] to-[#a2cf9c]/75">
+                      {produto.foto ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={produto.foto}
+                          alt={produto.nome}
+                          loading="lazy"
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center text-[#142614]">
+                          <CategoryPlaceholderIcon
+                            categoria={produto.categoria}
+                          />
+                        </div>
                       )}
                     </div>
-                    {produto.descricao && (
-                      <p className="mt-0.5 line-clamp-2 text-xs text-[var(--muted-foreground)]">
-                        {produto.descricao}
-                      </p>
-                    )}
-                  </div>
 
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-base font-extrabold text-[var(--foreground)]">
-                      {formatCurrency(produto.preco)}
-                    </span>
-
-                    {!isOrderMode ? null : outOfStock ? (
-                      <span className="text-xs font-semibold text-[var(--muted-foreground)]">
-                        Indisponível
-                      </span>
-                    ) : qty === 0 ? (
-                      <Button
-                        size="sm"
-                        onClick={() => handleQtyChange(produto, 1)}
-                        disabled={!canAdd}
-                        aria-label={`Adicionar ${produto.nome}`}
-                      >
-                        <Plus className="h-4 w-4" />
-                        Adicionar
-                      </Button>
-                    ) : (
-                      <div className="inline-flex items-center gap-1.5 rounded-full bg-[var(--brand-primary-soft)] p-1 border border-[var(--brand-primary)]/40">
-                        <button
-                          type="button"
-                          onClick={() => handleQtyChange(produto, -1)}
-                          aria-label={`Remover uma unidade de ${produto.nome}`}
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white text-[var(--foreground)] shadow-xs active:scale-95 cursor-pointer"
-                        >
-                          <Minus className="h-4 w-4" />
-                        </button>
-                        <span className="min-w-6 text-center text-sm font-bold text-[var(--foreground)]">
-                          {qty}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => handleQtyChange(produto, 1)}
-                          disabled={!canAdd}
-                          aria-label={`Adicionar mais uma unidade de ${produto.nome}`}
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)] shadow-xs active:scale-95 disabled:opacity-40 cursor-pointer"
-                        >
-                          <Plus className="h-4 w-4" />
-                        </button>
+                    {/* Conteúdo */}
+                    <div className="flex min-w-0 flex-1 flex-col justify-between gap-2">
+                      <div>
+                        <div className="flex items-start justify-between gap-2">
+                          <h3 className="text-base font-bold leading-snug text-[var(--foreground)]">
+                            {produto.nome}
+                          </h3>
+                          {outOfStock && (
+                            <Badge variant="destructive" className="shrink-0">
+                              Esgotado
+                            </Badge>
+                          )}
+                        </div>
+                        {produto.descricao && (
+                          <p className="mt-0.5 line-clamp-2 text-xs text-[var(--muted-foreground)]">
+                            {produto.descricao}
+                          </p>
+                        )}
                       </div>
-                    )}
-                  </div>
-                </div>
-              </article>
-            );
-          })}
+
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-base font-extrabold text-[var(--foreground)]">
+                          {formatCurrency(produto.preco)}
+                        </span>
+
+                        {!isOrderMode ? null : outOfStock ? (
+                          <span className="text-xs font-semibold text-[var(--muted-foreground)]">
+                            Indisponível
+                          </span>
+                        ) : qty === 0 ? (
+                          <Button
+                            size="sm"
+                            onClick={() => handleQtyChange(produto, 1)}
+                            disabled={!canAdd}
+                            aria-label={`Adicionar ${produto.nome}`}
+                          >
+                            <Plus className="h-4 w-4" />
+                            Adicionar
+                          </Button>
+                        ) : (
+                          <div className="inline-flex items-center gap-1.5 rounded-full bg-[var(--brand-primary-soft)] p-1 border border-[var(--brand-primary)]/40">
+                            <button
+                              type="button"
+                              onClick={() => handleQtyChange(produto, -1)}
+                              aria-label={`Remover uma unidade de ${produto.nome}`}
+                              className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white text-[var(--foreground)] shadow-xs active:scale-95 cursor-pointer"
+                            >
+                              <Minus className="h-4 w-4" />
+                            </button>
+                            <span className="min-w-6 text-center text-sm font-bold text-[var(--foreground)]">
+                              {qty}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleQtyChange(produto, 1)}
+                              disabled={!canAdd}
+                              aria-label={`Adicionar mais uma unidade de ${produto.nome}`}
+                              className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)] shadow-xs active:scale-95 disabled:opacity-40 cursor-pointer"
+                            >
+                              <Plus className="h-4 w-4" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
+            </section>
+          ))}
         </main>
       )}
 

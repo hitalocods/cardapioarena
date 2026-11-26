@@ -27,6 +27,7 @@ import {
 export interface AdminProduto {
   id: string;
   nome: string;
+  categoria: string;
   descricao: string;
   preco: number;
   foto: string | null;
@@ -39,6 +40,7 @@ export interface AdminProduto {
 
 interface ProdutoFormState {
   nome: string;
+  categoria: string;
   descricao: string;
   precoTexto: string;
   foto: string;
@@ -49,8 +51,18 @@ interface ProdutoFormState {
   estoqueMinimo: string;
 }
 
+const DEFAULT_CATEGORIES = [
+  "Entradas",
+  "Lanches",
+  "Tira Gosto",
+  "Bebidas",
+  "Cervejas",
+  "Doses",
+];
+
 const EMPTY_FORM: ProdutoFormState = {
   nome: "",
+  categoria: "Bebidas",
   descricao: "",
   precoTexto: "",
   foto: "",
@@ -63,6 +75,7 @@ const EMPTY_FORM: ProdutoFormState = {
 
 export function ProdutosTab() {
   const [produtos, setProdutos] = React.useState<AdminProduto[]>([]);
+  const [categoryFilter, setCategoryFilter] = React.useState<string>("Todos");
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [stockDrafts, setStockDrafts] = React.useState<Record<string, string>>(
@@ -140,10 +153,29 @@ export function ProdutosTab() {
     [produtos]
   );
 
+  const categorias = React.useMemo(() => {
+    const seen = new Set<string>();
+    const list: string[] = [];
+    for (const p of produtos) {
+      const cat = p.categoria || "Geral";
+      if (!seen.has(cat)) {
+        seen.add(cat);
+        list.push(cat);
+      }
+    }
+    return list;
+  }, [produtos]);
+
+  const filteredProdutos = React.useMemo(() => {
+    if (categoryFilter === "Todos") return produtos;
+    return produtos.filter((p) => (p.categoria || "Geral") === categoryFilter);
+  }, [produtos, categoryFilter]);
+
   const openCreate = () => {
     setEditingId(null);
     setForm({
       ...EMPTY_FORM,
+      categoria: categoryFilter !== "Todos" ? categoryFilter : "Bebidas",
       ordem: String(produtos.length + 1),
     });
     setFormError(null);
@@ -154,6 +186,7 @@ export function ProdutosTab() {
     setEditingId(p.id);
     setForm({
       nome: p.nome,
+      categoria: p.categoria || "Geral",
       descricao: p.descricao,
       precoTexto: formatCentavosInput(p.preco),
       foto: p.foto ?? "",
@@ -224,6 +257,7 @@ export function ProdutosTab() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           nome: form.nome.trim(),
+          categoria: form.categoria.trim() || "Geral",
           descricao: form.descricao.trim(),
           preco,
           foto: form.foto.trim() || null,
@@ -313,7 +347,7 @@ export function ProdutosTab() {
       <div className="glass-card flex flex-wrap items-center justify-between gap-3 p-4">
         <div>
           <h2 className="text-xl font-extrabold text-[var(--foreground)]">
-            Produtos e Estoque
+            Produtos e Estoque ({produtos.length})
           </h2>
           <p className="text-xs text-[var(--muted-foreground)]">
             Itens com estoque 0 ficam automaticamente como &ldquo;Esgotado&rdquo;
@@ -325,6 +359,29 @@ export function ProdutosTab() {
           Novo produto
         </Button>
       </div>
+
+      {/* Filtro rápido por categoria */}
+      {categorias.length > 1 && (
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          {["Todos", ...categorias].map((cat) => {
+            const active = categoryFilter === cat;
+            return (
+              <button
+                key={cat}
+                type="button"
+                onClick={() => setCategoryFilter(cat)}
+                className={`shrink-0 rounded-full border px-4 py-1.5 text-xs font-bold transition cursor-pointer ${
+                  active
+                    ? "border-[var(--brand-primary-strong)] bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)] shadow-xs"
+                    : "border-[var(--border)] bg-white/80 text-[var(--muted-foreground)] hover:bg-white hover:text-[var(--foreground)]"
+                }`}
+              >
+                {cat}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* Alerta de estoque baixo */}
       {lowStockItems.length > 0 && (
@@ -357,13 +414,13 @@ export function ProdutosTab() {
 
       {loading ? (
         <div className="glass-card h-48 animate-pulse" />
-      ) : produtos.length === 0 ? (
+      ) : filteredProdutos.length === 0 ? (
         <div className="glass-card p-8 text-center">
-          <p className="font-semibold">Nenhum produto cadastrado.</p>
+          <p className="font-semibold">Nenhum produto encontrado.</p>
         </div>
       ) : (
         <div className="flex flex-col gap-3">
-          {produtos.map((p) => {
+          {filteredProdutos.map((p) => {
             const isLow =
               p.controlaEstoque && p.estoque > 0 && p.estoque <= p.estoqueMinimo;
             const isOut = p.controlaEstoque && p.estoque === 0;
@@ -380,7 +437,7 @@ export function ProdutosTab() {
                 }`}
               >
                 <div className="flex items-center gap-3.5 min-w-0">
-                  <div className="h-16 w-16 shrink-0 overflow-hidden rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border)]">
+                  <div className="h-16 w-16 shrink-0 overflow-hidden rounded-2xl border border-[#a2cf9c]/60 bg-gradient-to-br from-[#eaf5e8] to-[#a2cf9c]/75">
                     {p.foto ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
@@ -389,8 +446,8 @@ export function ProdutosTab() {
                         className="h-full w-full object-cover"
                       />
                     ) : (
-                      <div className="flex h-full w-full items-center justify-center text-[var(--brand-primary-strong)]">
-                        <UtensilsCrossed className="h-6 w-6 opacity-60" />
+                      <div className="flex h-full w-full items-center justify-center text-[#142614]">
+                        <UtensilsCrossed className="h-6 w-6 opacity-75" />
                       </div>
                     )}
                   </div>
@@ -403,6 +460,7 @@ export function ProdutosTab() {
                       <h3 className="text-base font-bold text-[var(--foreground)]">
                         {p.nome}
                       </h3>
+                      <Badge variant="secondary">{p.categoria}</Badge>
                       {!p.ativo && <Badge variant="outline">Inativo</Badge>}
                       {isOut && <Badge variant="destructive">Esgotado</Badge>}
                       {isLow && <Badge variant="warning">Estoque baixo</Badge>}
@@ -522,15 +580,37 @@ export function ProdutosTab() {
         title={editingId ? "Editar produto" : "Novo produto"}
       >
         <form onSubmit={handleSave} className="flex flex-col gap-4">
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="prod-nome">Nome</Label>
-            <Input
-              id="prod-nome"
-              value={form.nome}
-              onChange={(e) => setForm({ ...form, nome: e.target.value })}
-              placeholder="Ex: Cerveja Long Neck"
-              required
-            />
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="prod-nome">Nome</Label>
+              <Input
+                id="prod-nome"
+                value={form.nome}
+                onChange={(e) => setForm({ ...form, nome: e.target.value })}
+                placeholder="Ex: Cerveja Skol"
+                required
+              />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="prod-categoria">Categoria</Label>
+              <Input
+                id="prod-categoria"
+                list="ahb-categorias-list"
+                value={form.categoria}
+                onChange={(e) =>
+                  setForm({ ...form, categoria: e.target.value })
+                }
+                placeholder="Ex: Cervejas"
+                maxLength={40}
+                required
+              />
+              <datalist id="ahb-categorias-list">
+                {DEFAULT_CATEGORIES.map((c) => (
+                  <option key={c} value={c} />
+                ))}
+              </datalist>
+            </div>
           </div>
 
           <div className="flex flex-col gap-1.5">
@@ -539,7 +619,7 @@ export function ProdutosTab() {
               id="prod-desc"
               value={form.descricao}
               onChange={(e) => setForm({ ...form, descricao: e.target.value })}
-              placeholder="Ex: Bem gelada 330ml"
+              placeholder="Ex: Bem gelada"
               maxLength={240}
             />
           </div>

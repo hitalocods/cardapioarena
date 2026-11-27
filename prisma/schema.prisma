@@ -15,6 +15,34 @@ enum PedidoStatus {
   CANCELADO
 }
 
+enum ComandaStatus {
+  ABERTA
+  FECHADA
+}
+
+enum ComandaTipo {
+  MESA
+  BALCAO
+}
+
+enum PedidoOrigem {
+  CLIENTE
+  BALCAO
+  GARCOM
+}
+
+enum FormaPagamento {
+  PIX
+  CARTAO_CREDITO
+  CARTAO_DEBITO
+  DINHEIRO
+}
+
+enum PagamentoStatus {
+  ATIVO
+  ESTORNADO
+}
+
 model Produto {
   id              String       @id @default(cuid())
   nome            String
@@ -45,39 +73,90 @@ model Mesa {
   @@index([ativa, numero])
 }
 
-model Pedido {
-  id             String       @id @default(cuid())
-  numero         Int          @unique @default(autoincrement())
-  idempotencyKey String       @unique
-  nomeCliente    String
-  telefone       String
-  mesaNumero     Int
-  observacao     String?
-  status         PedidoStatus @default(RECEBIDO)
-  total          Int          // Total em centavos
-  ip             String
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
-  itens          ItemPedido[]
+model Comanda {
+  id                       String        @id @default(cuid())
+  tipo                     ComandaTipo   @default(MESA)
+  mesaNumero               Int?
+  status                   ComandaStatus @default(ABERTA)
+  mesaAberta               Int?          @unique
+  abertaEm                 DateTime      @default(now())
+  fechadaEm                DateTime?
+  pediuConta               Boolean       @default(false)
+  pediuContaEm             DateTime?
+  pediuContaDetalhes       String?
+  motivoFechamentoPendente String?
+  createdAt                DateTime      @default(now())
+  updatedAt                DateTime      @updatedAt
+  pedidos                  Pedido[]
+  pagamentos               Pagamento[]
 
+  @@index([status])
+  @@index([tipo, status])
+  @@index([mesaNumero, status])
+}
+
+model Pedido {
+  id                 String       @id @default(cuid())
+  numero             Int          @unique @default(autoincrement())
+  idempotencyKey     String       @unique
+  comandaId          String?
+  comanda            Comanda?     @relation(fields: [comandaId], references: [id], onDelete: SetNull)
+  origem             PedidoOrigem @default(CLIENTE)
+  nomeCliente        String
+  telefone           String
+  mesaNumero         Int?
+  observacao         String?
+  lancadoPor         String?
+  motivoCancelamento String?
+  status             PedidoStatus @default(RECEBIDO)
+  total              Int          // Total em centavos
+  ip                 String
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+  itens              ItemPedido[]
+
+  @@index([comandaId])
+  @@index([origem, createdAt])
   @@index([status, createdAt])
   @@index([telefone, status])
   @@index([ip, status])
   @@index([mesaNumero, status])
 }
 
+model Pagamento {
+  id             String          @id @default(cuid())
+  comandaId      String
+  comanda        Comanda         @relation(fields: [comandaId], references: [id], onDelete: Cascade)
+  valor          Int             // Valor devido em centavos
+  forma          FormaPagamento
+  pagador        String?
+  recebidoPor    String?
+  status         PagamentoStatus @default(ATIVO)
+  motivoEstorno  String?
+  idempotencyKey String          @unique
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  itens          ItemPedido[]
+
+  @@index([comandaId])
+  @@index([status, createdAt])
+}
+
 model ItemPedido {
-  id            String   @id @default(cuid())
+  id            String     @id @default(cuid())
   pedidoId      String
-  pedido        Pedido   @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+  pedido        Pedido     @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
   produtoId     String?
-  produto       Produto? @relation(fields: [produtoId], references: [id], onDelete: SetNull)
+  produto       Produto?   @relation(fields: [produtoId], references: [id], onDelete: SetNull)
+  pagamentoId   String?
+  pagamento     Pagamento? @relation(fields: [pagamentoId], references: [id], onDelete: SetNull)
   nomeSnapshot  String
-  precoSnapshot Int      // Preço unitário em centavos no momento do pedido
+  precoSnapshot Int        // Preço unitário em centavos no momento do pedido
   quantidade    Int
 
   @@index([pedidoId])
   @@index([produtoId])
+  @@index([pagamentoId])
 }
 
 model PushSubscription {

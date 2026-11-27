@@ -1,4 +1,4 @@
-import type { PedidoStatus } from "@prisma/client";
+import type { FormaPagamento, PedidoStatus } from "@prisma/client";
 
 const brlFormatter = new Intl.NumberFormat("pt-BR", {
   style: "currency",
@@ -112,5 +112,46 @@ export const ALLOWED_STATUS_TRANSITIONS: Record<PedidoStatus, PedidoStatus[]> =
 export function isOpenOrderStatus(status: PedidoStatus): boolean {
   return (
     status === "RECEBIDO" || status === "PREPARANDO" || status === "PRONTO"
+  );
+}
+
+export const FORMA_PAGAMENTO_LABELS: Record<FormaPagamento, string> = {
+  PIX: "Pix",
+  CARTAO_CREDITO: "Cartão de Crédito",
+  CARTAO_DEBITO: "Cartão de Débito",
+  DINHEIRO: "Dinheiro",
+};
+
+export const FORMAS_PAGAMENTO_ORDEM: FormaPagamento[] = [
+  "PIX",
+  "CARTAO_CREDITO",
+  "CARTAO_DEBITO",
+  "DINHEIRO",
+];
+
+export function formatDurationSince(
+  date: Date | string,
+  nowMs?: number
+): string {
+  const start =
+    typeof date === "string" ? new Date(date).getTime() : date.getTime();
+  const reference = typeof nowMs === "number" ? nowMs : Date.now();
+  const diffMs = Math.max(0, reference - start);
+  const totalMinutes = Math.floor(diffMs / 60000);
+  if (totalMinutes < 1) return "agora";
+  if (totalMinutes < 60) return `${totalMinutes} min`;
+  const hours = Math.floor(totalMinutes / 60);
+  const mins = totalMinutes % 60;
+  return mins > 0 ? `${hours}h ${mins}min` : `${hours}h`;
+}
+
+export function splitEquallyCentavos(
+  saldo: number,
+  numeroPessoas: number
+): number[] {
+  const base = Math.floor(saldo / numeroPessoas);
+  const resto = saldo - base * numeroPessoas;
+  return Array.from({ length: numeroPessoas }, (_, idx) =>
+    idx === numeroPessoas - 1 ? base + resto : base
   );
 }

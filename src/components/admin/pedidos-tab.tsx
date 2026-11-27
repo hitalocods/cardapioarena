@@ -23,9 +23,11 @@ import {
 export interface AdminPedido {
   id: string;
   numero: number;
+  origem?: "CLIENTE" | "BALCAO" | "GARCOM";
+  lancadoPor?: string | null;
   nomeCliente: string;
   telefone: string;
-  mesaNumero: number;
+  mesaNumero: number | null;
   observacao: string | null;
   status: PedidoStatus;
   total: number;
@@ -307,15 +309,23 @@ export function PedidosTab({
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <div className="inline-flex items-center rounded-2xl bg-[var(--brand-primary)] px-4 py-1.5 text-2xl font-black tracking-tight text-[var(--brand-primary-foreground)] shadow-xs">
-                        MESA {pedido.mesaNumero}
+                        {pedido.mesaNumero !== null
+                          ? `MESA ${pedido.mesaNumero}`
+                          : "BALCÃO"}
                       </div>
-                      <div className="mt-2 flex items-center gap-2">
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
                         <span className="text-lg font-extrabold text-[var(--foreground)]">
                           {pedido.nomeCliente}
                         </span>
                         <span className="text-sm font-semibold text-[var(--muted-foreground)]">
                           · #{pedido.numero} · {formatTimeBR(pedido.createdAt)}
                         </span>
+                        {pedido.origem === "GARCOM" && (
+                          <span className="rounded-full bg-[var(--brand-primary-soft)] px-2.5 py-0.5 text-xs font-bold text-[var(--brand-primary-foreground)]">
+                            Garçom
+                            {pedido.lancadoPor ? ` (${pedido.lancadoPor})` : ""}
+                          </span>
+                        )}
                       </div>
                     </div>
 

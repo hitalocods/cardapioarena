@@ -4,12 +4,17 @@ import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   BarChart3,
+  BellRing,
   Boxes,
   ClipboardList,
+  ClipboardPlus,
   LogOut,
   Menu,
   Package,
+  Plus,
   QrCode,
+  ReceiptText,
+  Store,
   Sun,
   TableProperties,
   X,
@@ -17,6 +22,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { TabsBar } from "@/components/ui/tabs";
 import { PedidosTab } from "@/components/admin/pedidos-tab";
+import { GarcomTab } from "@/components/admin/garcom-tab";
+import { ComandasTab } from "@/components/admin/comandas-tab";
+import { BalcaoTab } from "@/components/admin/balcao-tab";
+import { BalcaoVendaModal } from "@/components/admin/balcao-venda-modal";
 import { EstoqueTab } from "@/components/admin/estoque-tab";
 import { ProdutosTab } from "@/components/admin/produtos-tab";
 import { MesasTab } from "@/components/admin/mesas-tab";
@@ -26,6 +35,9 @@ import { AdminPwaControls } from "@/components/admin/admin-pwa-controls";
 
 export type TabId =
   | "pedidos"
+  | "garcom"
+  | "comandas"
+  | "balcao"
   | "estoque"
   | "produtos"
   | "mesas"
@@ -34,6 +46,9 @@ export type TabId =
 
 const VALID_TABS = new Set<TabId>([
   "pedidos",
+  "garcom",
+  "comandas",
+  "balcao",
   "estoque",
   "produtos",
   "mesas",
@@ -43,6 +58,9 @@ const VALID_TABS = new Set<TabId>([
 
 const TAB_TITLES: Record<TabId, string> = {
   pedidos: "Pedidos",
+  garcom: "Lançar pedido",
+  comandas: "Comandas",
+  balcao: "Balcão",
   estoque: "Estoque",
   produtos: "Produtos",
   mesas: "Mesas",
@@ -61,30 +79,64 @@ export function AdminDashboard({
   const tab: TabId = urlTab && VALID_TABS.has(urlTab) ? urlTab : initialTab;
 
   const [menuOpen, setMenuOpen] = React.useState(false);
+  const [balcaoModalOpen, setBalcaoModalOpen] = React.useState(false);
+  const [balcaoRefreshKey, setBalcaoRefreshKey] = React.useState(0);
+  const [balcaoToast, setBalcaoToast] = React.useState<string | null>(null);
   const [openOrdersCount, setOpenOrdersCount] = React.useState<number>(0);
+  const [openComandasCount, setOpenComandasCount] = React.useState<number>(0);
+  const [billRequestsMesas, setBillRequestsMesas] = React.useState<
+    Array<{ mesaNumero: number | null; detalhes: string | null }>
+  >([]);
   const [stockAlertsCount, setStockAlertsCount] = React.useState<number>(0);
 
   React.useEffect(() => {
     let active = true;
-    fetch("/api/admin/produtos", { cache: "no-store" })
-      .then(async (res) => {
-        if (!active || !res.ok) return;
-        const data = (await res.json()) as {
-          produtos: Array<{
-            ativo: boolean;
-            controlaEstoque: boolean;
-            estoque: number;
-            estoqueMinimo: number;
-          }>;
-        };
+    Promise.all([
+      fetch("/api/admin/produtos", { cache: "no-store" }),
+      fetch("/api/admin/comandas?status=ABERTA", { cache: "no-store" }),
+    ])
+      .then(async ([prodRes, comRes]) => {
         if (!active) return;
-        const alerts = data.produtos.filter(
-          (p) =>
-            p.ativo &&
-            p.controlaEstoque &&
-            (p.estoque <= 0 || p.estoque <= p.estoqueMinimo)
-        ).length;
-        setStockAlertsCount(alerts);
+        if (prodRes.ok) {
+          const data = (await prodRes.json()) as {
+            produtos: Array<{
+              ativo: boolean;
+              controlaEstoque: boolean;
+              estoque: number;
+              estoqueMinimo: number;
+            }>;
+          };
+          if (active) {
+            const alerts = data.produtos.filter(
+              (p) =>
+                p.ativo &&
+                p.controlaEstoque &&
+                (p.estoque <= 0 || p.estoque <= p.estoqueMinimo)
+            ).length;
+            setStockAlertsCount(alerts);
+          }
+        }
+        if (comRes.ok) {
+          const data = (await comRes.json()) as {
+            comandas: Array<{
+              id: string;
+              mesaNumero: number | null;
+              pediuConta: boolean;
+              pediuContaDetalhes: string | null;
+            }>;
+          };
+          if (active) {
+            setOpenComandasCount(data.comandas.length);
+            setBillRequestsMesas(
+              data.comandas
+                .filter((c) => c.pediuConta)
+                .map((c) => ({
+                  mesaNumero: c.mesaNumero,
+                  detalhes: c.pediuContaDetalhes,
+                }))
+            );
+          }
+        }
       })
       .catch(() => {});
     return () => {
@@ -129,6 +181,22 @@ export function AdminDashboard({
       label: "Pedidos",
       badge: openOrdersCount,
       icon: <ClipboardList className="h-4 w-4" />,
+    },
+    {
+      value: "garcom",
+      label: "Lançar pedido",
+      icon: <ClipboardPlus className="h-4 w-4" />,
+    },
+    {
+      value: "comandas",
+      label: "Comandas",
+      badge: openComandasCount,
+      icon: <ReceiptText className="h-4 w-4" />,
+    },
+    {
+      value: "balcao",
+      label: "Balcão",
+      icon: <Store className="h-4 w-4" />,
     },
     {
       value: "estoque",
@@ -179,6 +247,15 @@ export function AdminDashboard({
         </div>
 
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setBalcaoModalOpen(true)}
+            className="inline-flex h-10 items-center gap-1 rounded-xl bg-[var(--brand-primary)] px-2.5 text-xs font-extrabold text-[var(--brand-primary-foreground)] shadow-xs active:scale-95 cursor-pointer"
+          >
+            <Plus className="h-4 w-4" />
+            Balcão
+          </button>
+
           {openOrdersCount > 0 && tab !== "pedidos" && (
             <button
               type="button"
@@ -306,14 +383,21 @@ export function AdminDashboard({
             </h1>
           </div>
 
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => void handleLogout()}
-          >
-            <LogOut className="h-4 w-4" />
-            Sair
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button size="sm" onClick={() => setBalcaoModalOpen(true)}>
+              <Plus className="h-4 w-4" />
+              Nova venda de balcão
+            </Button>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => void handleLogout()}
+            >
+              <LogOut className="h-4 w-4" />
+              Sair
+            </Button>
+          </div>
         </div>
 
         <AdminPwaControls />
@@ -327,7 +411,67 @@ export function AdminDashboard({
         />
       </div>
 
+      {balcaoToast && (
+        <div className="flex items-center justify-between gap-2 rounded-2xl bg-[var(--brand-primary-soft)] px-4 py-3 text-sm font-bold text-[var(--brand-primary-foreground)]">
+          <span>{balcaoToast}</span>
+          <button
+            type="button"
+            onClick={() => setBalcaoToast(null)}
+            className="text-xs underline cursor-pointer"
+          >
+            Fechar
+          </button>
+        </div>
+      )}
+
+      {billRequestsMesas.length > 0 && (
+        <button
+          type="button"
+          onClick={() => handleTabChange("comandas")}
+          className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-amber-400 bg-amber-50 px-4 py-3 text-left text-sm font-bold text-amber-900 shadow-xs transition hover:bg-amber-100 cursor-pointer"
+        >
+          <span className="flex items-center gap-2">
+            <BellRing className="h-4 w-4 shrink-0 animate-pulse text-amber-700" />
+            <span>
+              Conta solicitada:{" "}
+              {billRequestsMesas
+                .map(
+                  (m) =>
+                    `Mesa ${m.mesaNumero ?? "-"}${
+                      m.detalhes ? ` (${m.detalhes})` : ""
+                    }`
+                )
+                .join(" · ")}
+            </span>
+          </span>
+          <span className="text-xs underline">Ver comandas</span>
+        </button>
+      )}
+
       {tab === "pedidos" && <PedidosTab onCountChange={setOpenOrdersCount} />}
+      {tab === "garcom" && (
+        <GarcomTab
+          onOrderCreated={() => {
+            setOpenComandasCount((c) => c); // dispara refresh de contagem via callback se necessário
+            fetch("/api/admin/comandas?status=ABERTA", { cache: "no-store" })
+              .then(async (r) => {
+                if (!r.ok) return;
+                const d = (await r.json()) as { comandas: Array<{ id: string }> };
+                setOpenComandasCount(d.comandas.length);
+              })
+              .catch(() => {});
+          }}
+        />
+      )}
+      {tab === "comandas" && (
+        <ComandasTab onOpenCountChange={setOpenComandasCount} />
+      )}
+      {tab === "balcao" && (
+        <BalcaoTab
+          refreshKey={balcaoRefreshKey}
+          onNewSaleClick={() => setBalcaoModalOpen(true)}
+        />
+      )}
       {tab === "estoque" && (
         <EstoqueTab onAlertsChange={setStockAlertsCount} />
       )}
@@ -340,6 +484,21 @@ export function AdminDashboard({
         />
       )}
       {tab === "qrcode" && <QrcodeTab />}
+
+      <BalcaoVendaModal
+        open={balcaoModalOpen}
+        onOpenChange={setBalcaoModalOpen}
+        onSuccess={(venda) => {
+          setBalcaoRefreshKey((k) => k + 1);
+          setBalcaoToast(
+            `Venda de balcão #${venda.numero} registrada!${
+              venda.status === "RECEBIDO"
+                ? " Enviada para a fila da cozinha."
+                : ""
+            }`
+          );
+        }}
+      />
     </div>
   );
 }

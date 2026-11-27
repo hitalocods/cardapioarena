@@ -7,12 +7,13 @@ import { isValidBrPhone, normalizeBrPhone } from "@/lib/phone";
 import { ACTIVE_ABUSE_STATUSES } from "@/lib/format";
 import { toPublicPedidoDTO } from "@/lib/orders";
 import { sendNewOrderPush } from "@/lib/push";
+import { ensureOpenComandaForMesa } from "@/lib/comandas";
 
 const MAX_UNITS_PER_ITEM = 20;
 const MAX_TOTAL_UNITS_PER_ORDER = 30;
 const MAX_OPEN_BY_PHONE = 3;
 const MAX_OPEN_BY_IP = 15;
-const MAX_OPEN_BY_MESA = 8;
+const MAX_OPEN_BY_MESA = 20;
 
 const createOrderSchema = z.object({
   idempotencyKey: z.string().trim().min(8).max(128),
@@ -170,7 +171,7 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         error:
-          "Esta mesa já possui 8 pedidos em andamento. Aguarde a finalização de um deles para enviar outro.",
+          "Esta mesa já possui 20 pedidos em andamento. Aguarde a finalização de um deles para enviar outro.",
       },
       { status: 429 }
     );
@@ -249,9 +250,12 @@ export async function POST(request: Request) {
           };
         });
 
+        const comanda = await ensureOpenComandaForMesa(tx, mesaRecord.numero);
+
         return tx.pedido.create({
           data: {
             idempotencyKey: data.idempotencyKey,
+            comandaId: comanda.id,
             nomeCliente: data.nomeCliente,
             telefone: telefoneDigits,
             mesaNumero: mesaRecord.numero,

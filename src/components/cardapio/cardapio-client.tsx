@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Beer,
+  BellRing,
   CheckCircle2,
   Clock,
   CupSoda,
@@ -13,19 +14,29 @@ import {
   Minus,
   Plus,
   QrCode,
+  ReceiptText,
+  RefreshCw,
   Sandwich,
   ShoppingBag,
   Sun,
+  User,
+  Users,
   UtensilsCrossed,
   Wine,
 } from "lucide-react";
+import type { MinhaContaResponseDTO } from "@/app/api/minha-conta/route";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Dialog } from "@/components/ui/dialog";
 import { ArenaEmblem } from "@/components/brand/arena-emblem";
-import { formatCurrency } from "@/lib/format";
+import {
+  formatCurrency,
+  formatTimeBR,
+  PEDIDO_STATUS_LABELS,
+  PEDIDO_STATUS_STYLES,
+} from "@/lib/format";
 
 export interface CardapioProduto {
   id: string;
@@ -50,8 +61,32 @@ interface StoredLastOrder {
 }
 
 const LAST_ORDER_STORAGE_KEY = "ahb_last_order_v1";
+const MY_ORDERS_STORAGE_KEY = "ahb_my_order_ids_v1";
 const MAX_UNITS_PER_ITEM = 20;
 const MAX_TOTAL_UNITS = 30;
+
+function readSavedOrderIdsFromStorage(fallbackLastId?: string | null): string[] {
+  const ids: string[] = [];
+  try {
+    const raw = localStorage.getItem(MY_ORDERS_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        for (const id of parsed) {
+          if (typeof id === "string" && id.trim().length >= 10) {
+            ids.push(id.trim());
+          }
+        }
+      }
+    }
+    if (fallbackLastId && !ids.includes(fallbackLastId)) {
+      ids.unshift(fallbackLastId);
+    }
+  } catch {
+    if (fallbackLastId) ids.push(fallbackLastId);
+  }
+  return Array.from(new Set(ids)).slice(0, 50);
+}
 
 function CategoryPlaceholderIcon({ categoria }: { categoria: string }) {
   const key = categoria.toLowerCase();
@@ -100,6 +135,24 @@ export function CardapioClient({
   const [lastOrder, setLastOrder] = React.useState<StoredLastOrder | null>(
     null
   );
+  const [myOrderIds, setMyOrderIds] = React.useState<string[]>([]);
+  const [minhaContaOpen, setMinhaContaOpen] = React.useState(false);
+  const [minhaContaLoading, setMinhaContaLoading] = React.useState(false);
+  const [minhaContaError, setMinhaContaError] = React.useState<string | null>(
+    null
+  );
+  const [minhaContaData, setMinhaContaData] =
+    React.useState<MinhaContaResponseDTO | null>(null);
+
+  const [pedirContaOpen, setPedirContaOpen] = React.useState(false);
+  const [pedirContaBusy, setPedirContaBusy] = React.useState(false);
+  const [pedirContaError, setPedirContaError] = React.useState<string | null>(
+    null
+  );
+  const [pedirContaFeedback, setPedirContaFeedback] = React.useState<
+    string | null
+  >(null);
+
   const [submitting, setSubmitting] = React.useState(false);
   const [submitError, setSubmitError] = React.useState<string | null>(null);
 
@@ -109,13 +162,16 @@ export function CardapioClient({
   React.useEffect(() => {
     const timer = window.setTimeout(() => {
       try {
+        let fallbackLastId: string | null = null;
         const savedOrder = localStorage.getItem(LAST_ORDER_STORAGE_KEY);
         if (savedOrder) {
           const parsedOrder = JSON.parse(savedOrder) as StoredLastOrder;
           if (parsedOrder?.id && parsedOrder?.numero) {
             setLastOrder(parsedOrder);
+            fallbackLastId = parsedOrder.id;
           }
         }
+        setMyOrderIds(readSavedOrderIdsFromStorage(fallbackLastId));
       } catch {
         // Ignora erros de localStorage em navegação privada
       }
@@ -289,6 +345,11 @@ export function CardapioClient({
           LAST_ORDER_STORAGE_KEY,
           JSON.stringify({ id: created.id, numero: created.numero })
         );
+        const updatedIds = Array.from(
+          new Set([created.id, ...readSavedOrderIdsFromStorage(lastOrder?.id)])
+        ).slice(0, 50);
+        localStorage.setItem(MY_ORDERS_STORAGE_KEY, JSON.stringify(updatedIds));
+        setMyOrderIds(updatedIds);
       } catch {
         // Ignora erro de armazenamento
       }
@@ -302,6 +363,77 @@ export function CardapioClient({
       );
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const loadMinhaConta = React.useCallback(async () => {
+    setMinhaContaLoading(true);
+    setMinhaContaError(null);
+    const ids = readSavedOrderIdsFromStorage(lastOrder?.id);
+    setMyOrderIds(ids);
+
+    try {
+      const res = await fetch("/api/minha-conta", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          pedidoIds: ids,
+          ...(typeof mesaNumero === "number" ? { mesaNumero } : {}),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setMinhaContaError(
+          data.error ?? "Não foi possível carregar sua conta agora."
+        );
+        return;
+      }
+      setMinhaContaData(data as MinhaContaResponseDTO);
+    } catch {
+      setMinhaContaError("Erro de conexão ao consultar sua conta.");
+    } finally {
+      setMinhaContaLoading(false);
+    }
+  }, [lastOrder?.id, mesaNumero]);
+
+  const handleOpenMinhaConta = () => {
+    setPedirContaFeedback(null);
+    setPedirContaError(null);
+    setMinhaContaOpen(true);
+    void loadMinhaConta();
+  };
+
+  const handlePedirConta = async (escopo: "INDIVIDUAL" | "MESA") => {
+    if (mesaNumero === undefined || pedirContaBusy) return;
+    setPedirContaBusy(true);
+    setPedirContaError(null);
+    setPedirContaFeedback(null);
+
+    try {
+      const res = await fetch("/api/comandas/pedir-conta", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mesaNumero,
+          escopo,
+          nomeCliente: customer?.nomeCliente ?? null,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setPedirContaError(
+          data.error ?? "Não foi possível solicitar a conta agora."
+        );
+        return;
+      }
+
+      setPedirContaFeedback(
+        data.message ?? "Pedido de conta enviado! Já avisamos a equipe."
+      );
+    } catch {
+      setPedirContaError("Falha de conexão ao solicitar a conta.");
+    } finally {
+      setPedirContaBusy(false);
     }
   };
 
@@ -378,6 +510,38 @@ export function CardapioClient({
             </span>
             <span className="text-xs underline">Ver status</span>
           </Link>
+        )}
+
+        {(isOrderMode || myOrderIds.length > 0) && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleOpenMinhaConta}
+              className="flex-1 sm:flex-initial"
+            >
+              <ReceiptText className="h-4 w-4" />
+              Minha conta
+            </Button>
+
+            {isOrderMode && mesaNumero !== undefined && (
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  setPedirContaError(null);
+                  setPedirContaFeedback(null);
+                  setPedirContaOpen(true);
+                }}
+                className="flex-1 sm:flex-initial"
+              >
+                <BellRing className="h-4 w-4" />
+                Pedir a conta
+              </Button>
+            )}
+          </div>
         )}
       </header>
 
@@ -659,20 +823,235 @@ export function CardapioClient({
               </div>
             </div>
 
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="observacao">Observação (opcional)</Label>
-              <Textarea
-                id="observacao"
-                placeholder="Ex: gelo e limão, sem ketchup..."
-                value={observacao}
-                onChange={(e) => {
-                  invalidateIdempotency();
-                  setObservacao(e.target.value);
-                }}
-                maxLength={300}
-              />
-            </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="observacao">Observação (opcional)</Label>
+                <Textarea
+                  id="observacao"
+                  placeholder="Ex: gelo e limão, sem ketchup..."
+                  value={observacao}
+                  onChange={(e) => {
+                    invalidateIdempotency();
+                    setObservacao(e.target.value);
+                  }}
+                  maxLength={300}
+                />
+              </div>
           </form>
+        </Dialog>
+      )}
+
+      {/* Modal Minha Conta: exibe apenas os pedidos salvos neste aparelho */}
+      <Dialog
+        open={minhaContaOpen}
+        onOpenChange={setMinhaContaOpen}
+        title="Minha conta"
+        description={
+          isOrderMode && mesaNumero !== undefined
+            ? `Pedidos feitos neste aparelho · Mesa ${mesaNumero}`
+            : "Pedidos feitos neste aparelho"
+        }
+        footer={
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => void loadMinhaConta()}
+              disabled={minhaContaLoading}
+            >
+              <RefreshCw
+                className={`h-4 w-4 ${minhaContaLoading ? "animate-spin" : ""}`}
+              />
+              Atualizar
+            </Button>
+
+            {isOrderMode && mesaNumero !== undefined && (
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => {
+                  setMinhaContaOpen(false);
+                  setPedirContaError(null);
+                  setPedirContaFeedback(null);
+                  setPedirContaOpen(true);
+                }}
+              >
+                <BellRing className="h-4 w-4" />
+                Pedir a conta
+              </Button>
+            )}
+          </div>
+        }
+      >
+        <div className="flex flex-col gap-3">
+          {minhaContaError && (
+            <div className="rounded-2xl bg-[var(--status-cancelado-bg)] px-4 py-3 text-sm font-semibold text-[var(--status-cancelado-fg)]">
+              {minhaContaError}
+            </div>
+          )}
+
+          {minhaContaLoading ? (
+            <div className="flex flex-col gap-2">
+              <div className="h-20 animate-pulse rounded-2xl bg-[var(--surface-subtle)]" />
+              <div className="h-28 animate-pulse rounded-2xl bg-[var(--surface-subtle)]" />
+            </div>
+          ) : !minhaContaData || minhaContaData.pedidos.length === 0 ? (
+            <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-subtle)] p-6 text-center text-sm text-[var(--muted-foreground)]">
+              Nenhum pedido encontrado neste aparelho ainda.
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-3 gap-2 rounded-2xl border border-[var(--border)] bg-[var(--surface-subtle)] p-3 text-xs">
+                <div>
+                  <span className="block text-[var(--muted-foreground)]">
+                    Total
+                  </span>
+                  <strong className="text-sm font-extrabold text-[var(--foreground)]">
+                    {formatCurrency(minhaContaData.totalConsumido)}
+                  </strong>
+                </div>
+                <div>
+                  <span className="block text-[var(--muted-foreground)]">
+                    Pago
+                  </span>
+                  <strong className="text-sm font-extrabold text-[var(--brand-primary-strong)]">
+                    {formatCurrency(minhaContaData.totalPago)}
+                  </strong>
+                </div>
+                <div>
+                  <span className="block text-[var(--muted-foreground)]">
+                    Restante
+                  </span>
+                  <strong className="text-sm font-black text-[var(--foreground)]">
+                    {formatCurrency(minhaContaData.totalPendente)}
+                  </strong>
+                </div>
+              </div>
+
+              <ul className="flex flex-col gap-2.5">
+                {minhaContaData.pedidos.map((ped) => {
+                  const st = PEDIDO_STATUS_STYLES[ped.status];
+                  return (
+                    <li
+                      key={ped.id}
+                      className="rounded-2xl border border-[var(--border)] bg-white p-3.5 text-sm"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-extrabold text-[var(--foreground)]">
+                          Pedido #{ped.numero} · {formatTimeBR(ped.createdAt)}
+                        </span>
+                        <span
+                          className="rounded-full px-2.5 py-0.5 text-xs font-bold"
+                          style={{ backgroundColor: st.bg, color: st.fg }}
+                        >
+                          {PEDIDO_STATUS_LABELS[ped.status]}
+                        </span>
+                      </div>
+
+                      <ul className="mt-2 flex flex-col gap-1 text-xs">
+                        {ped.itens.map((item) => (
+                          <li
+                            key={item.id}
+                            className="flex items-center justify-between gap-2"
+                          >
+                            <span className="text-[var(--foreground)]">
+                              {item.quantidade}x {item.nomeSnapshot}
+                            </span>
+                            <span className="flex items-center gap-2">
+                              {ped.status !== "CANCELADO" && (
+                                <span
+                                  className={`font-bold ${
+                                    item.pago
+                                      ? "text-[var(--brand-primary-strong)]"
+                                      : "text-[var(--muted-foreground)]"
+                                  }`}
+                                >
+                                  {item.pago ? "Pago" : "Em aberto"}
+                                </span>
+                              )}
+                              <strong className="text-[var(--foreground)]">
+                                {formatCurrency(item.subtotal)}
+                              </strong>
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </li>
+                  );
+                })}
+              </ul>
+            </>
+          )}
+        </div>
+      </Dialog>
+
+      {/* Modal Pedir a Conta: Só a minha ou A mesa toda */}
+      {isOrderMode && mesaNumero !== undefined && (
+        <Dialog
+          open={pedirContaOpen}
+          onOpenChange={setPedirContaOpen}
+          title={`Pedir a conta · Mesa ${mesaNumero}`}
+          description="Escolha se deseja fechar apenas a sua parte ou a conta da mesa inteira."
+        >
+          <div className="flex flex-col gap-3">
+            {pedirContaError && (
+              <div className="rounded-2xl bg-[var(--status-cancelado-bg)] px-4 py-3 text-sm font-semibold text-[var(--status-cancelado-fg)]">
+                {pedirContaError}
+              </div>
+            )}
+
+            {pedirContaFeedback && (
+              <div className="rounded-2xl bg-[var(--brand-primary-soft)] px-4 py-3 text-sm font-semibold text-[var(--brand-primary-foreground)]">
+                {pedirContaFeedback}
+              </div>
+            )}
+
+            <button
+              type="button"
+              disabled={pedirContaBusy}
+              onClick={() => void handlePedirConta("INDIVIDUAL")}
+              className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--brand-primary)] bg-[var(--brand-primary-soft)]/55 p-4 text-left transition hover:bg-[var(--brand-primary-soft)] disabled:opacity-60 cursor-pointer"
+            >
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)]">
+                  <User className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="text-base font-extrabold text-[var(--foreground)]">
+                    Só a minha
+                  </p>
+                  <p className="text-xs text-[var(--muted-foreground)]">
+                    Avisar o atendente para fechar apenas a parte de{" "}
+                    <strong>{customer?.nomeCliente}</strong>.
+                  </p>
+                </div>
+              </div>
+              {pedirContaBusy && <Loader2 className="h-4 w-4 animate-spin" />}
+            </button>
+
+            <button
+              type="button"
+              disabled={pedirContaBusy}
+              onClick={() => void handlePedirConta("MESA")}
+              className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--border)] bg-white p-4 text-left transition hover:bg-[var(--surface-subtle)] disabled:opacity-60 cursor-pointer"
+            >
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--surface-subtle)] text-[var(--foreground)]">
+                  <Users className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="text-base font-extrabold text-[var(--foreground)]">
+                    A mesa toda
+                  </p>
+                  <p className="text-xs text-[var(--muted-foreground)]">
+                    Avisar o atendente para fechar toda a{" "}
+                    <strong>Mesa {mesaNumero}</strong>.
+                  </p>
+                </div>
+              </div>
+              {pedirContaBusy && <Loader2 className="h-4 w-4 animate-spin" />}
+            </button>
+          </div>
         </Dialog>
       )}
     </div>

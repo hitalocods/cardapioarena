@@ -123,7 +123,7 @@ export function PedidoTracker({
       {/* Topo */}
       <div className="flex items-center justify-between">
         <Link
-          href={`/mesa/${pedido.mesaNumero}`}
+          href={pedido.mesaNumero !== null ? `/mesa/${pedido.mesaNumero}` : "/"}
           className="inline-flex items-center gap-1.5 rounded-full bg-white/80 px-3.5 py-2 text-sm font-semibold text-[var(--foreground)] border border-[var(--border)] shadow-xs hover:bg-white"
         >
           <ArrowLeft className="h-4 w-4" />
@@ -157,8 +157,13 @@ export function PedidoTracker({
             <p className="mt-1 flex items-center gap-1.5 text-sm text-[var(--muted-foreground)]">
               <MapPin className="h-4 w-4 text-[var(--brand-primary-strong)]" />
               <span>
-                {pedido.nomeCliente} · <strong>Mesa {pedido.mesaNumero}</strong> ·{" "}
-                {formatTimeBR(pedido.createdAt)}
+                {pedido.nomeCliente} ·{" "}
+                <strong>
+                  {pedido.mesaNumero !== null
+                    ? `Mesa ${pedido.mesaNumero}`
+                    : "Balcão"}
+                </strong>{" "}
+                · {formatTimeBR(pedido.createdAt)}
               </span>
             </p>
           </div>
@@ -277,7 +282,10 @@ export function PedidoTracker({
         </div>
       </section>
 
-      <Link href={`/mesa/${pedido.mesaNumero}`} className="w-full">
+      <Link
+        href={pedido.mesaNumero !== null ? `/mesa/${pedido.mesaNumero}` : "/"}
+        className="w-full"
+      >
         <Button variant="outline" size="lg" className="w-full">
           Fazer outro pedido
         </Button>

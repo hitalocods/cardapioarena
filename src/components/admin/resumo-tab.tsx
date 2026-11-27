@@ -1,10 +1,11 @@
 "use client";
 
 import * as React from "react";
-import type { PedidoStatus } from "@prisma/client";
+import type { ComandaTipo, FormaPagamento, PedidoOrigem, PedidoStatus } from "@prisma/client";
 import {
   AlertTriangle,
   ArrowRight,
+  Banknote,
   BarChart3,
   Boxes,
   Clock,
@@ -14,13 +15,18 @@ import {
   Plus,
   Receipt,
   RefreshCw,
+  RotateCcw,
   ShoppingBag,
+  Store,
   TableProperties,
   TrendingUp,
+  Wallet,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
+  FORMA_PAGAMENTO_LABELS,
+  FORMAS_PAGAMENTO_ORDEM,
   formatCurrency,
   formatDateTimeBR,
   PEDIDO_STATUS_LABELS,
@@ -56,6 +62,42 @@ interface ResumoData {
   cancelados: number;
   valorCancelado: number;
   porStatus: Record<PedidoStatus, number>;
+  recebidoMesasPorForma: Record<FormaPagamento, number>;
+  totalRecebidoMesas: number;
+  recebidoBalcaoPorForma: Record<FormaPagamento, number>;
+  totalRecebidoBalcao: number;
+  recebidoPorForma: Record<FormaPagamento, number>;
+  totalRecebido: number;
+  dinheiroEsperadoCaixa: number;
+  vendasBalcaoCount: number;
+  comandasFechadas: number;
+  comandasAbertas: number;
+  estornos: Array<{
+    id: string;
+    comandaId: string;
+    tipo: ComandaTipo;
+    mesaNumero: number | null;
+    forma: FormaPagamento;
+    valor: number;
+    pagador: string | null;
+    recebidoPor: string | null;
+    motivoEstorno: string | null;
+    createdAt: string;
+    updatedAt: string;
+  }>;
+  totalEstornado: number;
+  qtdEstornos: number;
+  vendasBalcaoCanceladas: Array<{
+    comandaId: string | null;
+    pedidoId: string;
+    numero: number;
+    nomeCliente: string;
+    total: number;
+    motivoCancelamento: string | null;
+    createdAt: string;
+    itens: Array<{ nomeSnapshot: string; quantidade: number }>;
+  }>;
+  totalBalcaoCancelado: number;
   serie: Array<{
     label: string;
     pedidos: number;
@@ -85,7 +127,8 @@ interface ResumoData {
   pedidosRecentes: Array<{
     id: string;
     numero: number;
-    mesaNumero: number;
+    origem?: PedidoOrigem;
+    mesaNumero: number | null;
     nomeCliente: string;
     status: PedidoStatus;
     total: number;
@@ -319,6 +362,195 @@ export function ResumoTab({
                 {data.resumoEstoque.totalUnidadesEmEstoque} un. em estoque
               </p>
             </div>
+          </div>
+
+          {/* Caixa por forma de pagamento (Mesas x Balcão) */}
+          <div className="glass-card flex flex-col gap-4 p-5">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <Wallet className="h-5 w-5 text-[var(--brand-primary-strong)]" />
+                <h3 className="text-lg font-bold text-[var(--foreground)]">
+                  Caixa do período (Mesas × Balcão)
+                </h3>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="default">
+                  {data.vendasBalcaoCount} venda(s) balcão
+                </Badge>
+                <Badge variant="outline">
+                  {data.comandasFechadas} comanda(s) fechada(s)
+                </Badge>
+                {data.comandasAbertas > 0 && (
+                  <Badge variant="warning">
+                    {data.comandasAbertas} mesa(s) aberta(s)
+                  </Badge>
+                )}
+              </div>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-subtle)] p-4">
+                <p className="text-xs font-bold uppercase tracking-wider text-[var(--muted-foreground)]">
+                  Total recebido
+                </p>
+                <p className="mt-1 text-2xl font-black text-[var(--foreground)]">
+                  {formatCurrency(data.totalRecebido)}
+                </p>
+                <p className="mt-1 text-[11px] text-[var(--muted-foreground)]">
+                  Mesas: {formatCurrency(data.totalRecebidoMesas)} · Balcão:{" "}
+                  {formatCurrency(data.totalRecebidoBalcao)}
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-[var(--brand-primary)] bg-[var(--brand-primary-soft)]/60 p-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-bold uppercase tracking-wider text-[var(--brand-primary-foreground)]">
+                    Dinheiro esperado no caixa
+                  </p>
+                  <Banknote className="h-4 w-4 text-[var(--brand-primary-strong)]" />
+                </div>
+                <p className="mt-1 text-2xl font-black text-[var(--brand-primary-foreground)]">
+                  {formatCurrency(data.dinheiroEsperadoCaixa)}
+                </p>
+                <p className="mt-1 text-[11px] font-semibold text-[var(--brand-primary-foreground)]/80">
+                  Mesas: {formatCurrency(data.recebidoMesasPorForma.DINHEIRO)} ·
+                  Balcão: {formatCurrency(data.recebidoBalcaoPorForma.DINHEIRO)}
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-subtle)] p-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-bold uppercase tracking-wider text-[var(--muted-foreground)]">
+                    Recebido Balcão
+                  </p>
+                  <Store className="h-4 w-4 text-[var(--brand-primary-strong)]" />
+                </div>
+                <p className="mt-1 text-2xl font-black text-[var(--foreground)]">
+                  {formatCurrency(data.totalRecebidoBalcao)}
+                </p>
+                <p className="mt-1 text-[11px] text-[var(--muted-foreground)]">
+                  {data.vendasBalcaoCount} venda(s) válida(s)
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-subtle)] p-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-bold uppercase tracking-wider text-[var(--muted-foreground)]">
+                    Recebido Mesas
+                  </p>
+                  <TableProperties className="h-4 w-4 text-[var(--brand-primary-strong)]" />
+                </div>
+                <p className="mt-1 text-2xl font-black text-[var(--foreground)]">
+                  {formatCurrency(data.totalRecebidoMesas)}
+                </p>
+                <p className="mt-1 text-[11px] text-[var(--muted-foreground)]">
+                  {data.comandasFechadas} fechada(s) · {data.comandasAbertas}{" "}
+                  aberta(s)
+                </p>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto rounded-2xl border border-[var(--border)] bg-[var(--surface-subtle)]">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-[var(--border)] text-left text-xs uppercase tracking-wider text-[var(--muted-foreground)]">
+                    <th className="px-4 py-2.5">Forma de pagamento</th>
+                    <th className="px-4 py-2.5 text-right">Mesas</th>
+                    <th className="px-4 py-2.5 text-right">Balcão</th>
+                    <th className="px-4 py-2.5 text-right">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {FORMAS_PAGAMENTO_ORDEM.map((forma) => {
+                    const mesasVal = data.recebidoMesasPorForma[forma] ?? 0;
+                    const balcaoVal = data.recebidoBalcaoPorForma[forma] ?? 0;
+                    const geralVal = data.recebidoPorForma[forma] ?? 0;
+                    return (
+                      <tr
+                        key={forma}
+                        className="border-b border-[var(--border)]/60 last:border-none"
+                      >
+                        <td className="px-4 py-2.5 font-bold text-[var(--foreground)]">
+                          {FORMA_PAGAMENTO_LABELS[forma]}
+                        </td>
+                        <td className="px-4 py-2.5 text-right text-[var(--muted-foreground)]">
+                          {formatCurrency(mesasVal)}
+                        </td>
+                        <td className="px-4 py-2.5 text-right text-[var(--muted-foreground)]">
+                          {formatCurrency(balcaoVal)}
+                        </td>
+                        <td className="px-4 py-2.5 text-right font-black text-[var(--foreground)]">
+                          {formatCurrency(geralVal)}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {(data.vendasBalcaoCanceladas.length > 0 ||
+              data.estornos.length > 0) && (
+              <div className="rounded-2xl border border-[var(--destructive)]/25 bg-[var(--status-cancelado-bg)]/45 p-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wider text-[var(--status-cancelado-fg)]">
+                    <RotateCcw className="h-3.5 w-3.5" />
+                    Vendas canceladas e pagamentos estornados (fora dos totais)
+                  </p>
+                  <span className="text-xs font-bold text-[var(--status-cancelado-fg)]">
+                    {data.estornos.length} estorno(s):{" "}
+                    {formatCurrency(data.totalEstornado)}
+                  </span>
+                </div>
+
+                <ul className="mt-2.5 flex flex-col gap-1.5 text-xs">
+                  {data.vendasBalcaoCanceladas.map((vc) => (
+                    <li
+                      key={vc.pedidoId}
+                      className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-white/80 px-3 py-2 text-[var(--foreground)]"
+                    >
+                      <span>
+                        <strong>Balcão #{vc.numero}</strong> · {vc.nomeCliente} ·{" "}
+                        {vc.itens
+                          .map((i) => `${i.quantidade}x ${i.nomeSnapshot}`)
+                          .join(", ")}
+                        {vc.motivoCancelamento
+                          ? ` · Motivo: ${vc.motivoCancelamento}`
+                          : ""}
+                      </span>
+                      <span className="font-bold line-through text-[var(--status-cancelado-fg)]">
+                        {formatCurrency(vc.total)}
+                      </span>
+                    </li>
+                  ))}
+
+                  {data.estornos.map((est) => (
+                    <li
+                      key={est.id}
+                      className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-white/80 px-3 py-2 text-[var(--foreground)]"
+                    >
+                      <span>
+                        <strong>
+                          Estorno (
+                          {est.tipo === "BALCAO"
+                            ? "Balcão"
+                            : `Mesa ${est.mesaNumero ?? "-"}`}
+                          )
+                        </strong>{" "}
+                        · {FORMA_PAGAMENTO_LABELS[est.forma]}
+                        {est.pagador ? ` · ${est.pagador}` : ""}
+                        {est.motivoEstorno
+                          ? ` · Motivo: ${est.motivoEstorno}`
+                          : ""}
+                      </span>
+                      <span className="font-bold line-through text-[var(--status-cancelado-fg)]">
+                        {formatCurrency(est.valor)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
 
           {/* Status dos pedidos no período */}
@@ -664,7 +896,9 @@ export function ResumoTab({
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="font-black text-[var(--foreground)]">
-                            Mesa {pedido.mesaNumero}
+                            {pedido.mesaNumero !== null
+                              ? `Mesa ${pedido.mesaNumero}`
+                              : "Balcão"}
                           </span>
                           <span className="font-semibold text-[var(--foreground)]">
                             {pedido.nomeCliente}

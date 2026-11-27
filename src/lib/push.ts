@@ -106,7 +106,7 @@ export async function sendPushToAllAdmins(payload: PushPayload): Promise<{
 export async function sendNewOrderPush(pedido: {
   numero: number;
   nomeCliente: string;
-  mesaNumero: number;
+  mesaNumero: number | null;
   itens: Array<{ nomeSnapshot: string; quantidade: number }>;
 }): Promise<void> {
   try {
@@ -116,15 +116,41 @@ export async function sendNewOrderPush(pedido: {
       .join(", ");
     const extraCount =
       pedido.itens.length > 3 ? ` +${pedido.itens.length - 3}` : "";
+    const localLabel =
+      pedido.mesaNumero !== null ? `Mesa ${pedido.mesaNumero}` : "Balcão";
 
     // Nunca incluir telefone no payload de notificação
     await sendPushToAllAdmins({
-      title: `Novo pedido · Mesa ${pedido.mesaNumero}`,
+      title: `Novo pedido · ${localLabel}`,
       body: `${resumoItens}${extraCount} · ${pedido.nomeCliente}`,
       url: "/admin?tab=pedidos",
       tag: `pedido-${pedido.numero}`,
     });
   } catch (error) {
     console.error("Falha não-bloqueante ao enviar push de novo pedido:", error);
+  }
+}
+
+export async function sendBillRequestPush(params: {
+  mesaNumero: number;
+  escopo: "INDIVIDUAL" | "MESA";
+  nomeCliente?: string | null;
+}): Promise<void> {
+  try {
+    const nome = params.nomeCliente?.trim() || "Cliente";
+    const title =
+      params.escopo === "INDIVIDUAL"
+        ? `Mesa ${params.mesaNumero} pediu a conta · só ${nome}`
+        : `Mesa ${params.mesaNumero} pediu a conta · mesa toda`;
+
+    // Nunca incluir telefone no payload de notificação
+    await sendPushToAllAdmins({
+      title,
+      body: "Abra a aba Comandas no painel para atender a mesa.",
+      url: "/admin?tab=comandas",
+      tag: `conta-mesa-${params.mesaNumero}`,
+    });
+  } catch (error) {
+    console.error("Falha não-bloqueante ao enviar push de pedir a conta:", error);
   }
 }

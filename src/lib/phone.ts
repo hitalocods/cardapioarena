@@ -49,3 +49,30 @@ export function formatBrPhoneMask(input: string): string {
   }
   return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
 }
+
+/**
+ * Gera chave estável para agrupar pessoas lançadas pelo garçom sem telefone
+ * na mesma comanda (ex.: "João" / "joao" -> "garcom:joao").
+ */
+export function buildGarcomPessoaKey(nome: string): string {
+  const slug = nome
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return `garcom:${slug || "cliente"}`;
+}
+
+export function isGarcomPessoaKey(value: string): boolean {
+  return /^garcom:[a-z0-9-]+$/i.test(value.trim());
+}
+
+export function formatPessoaContato(telefone: string): string {
+  const clean = telefone.trim();
+  if (!clean || isGarcomPessoaKey(clean)) {
+    return "Sem telefone (garçom)";
+  }
+  return formatBrPhoneMask(clean) || clean;
+}

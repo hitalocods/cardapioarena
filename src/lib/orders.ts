@@ -4,7 +4,7 @@ export interface PublicPedidoDTO {
   id: string;
   numero: number;
   nomeCliente: string;
-  mesaNumero: number;
+  mesaNumero: number | null;
   observacao: string | null;
   status: PedidoStatus;
   total: number;

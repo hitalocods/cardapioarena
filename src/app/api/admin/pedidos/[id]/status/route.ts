@@ -4,6 +4,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireAdminApi } from "@/lib/auth";
 import { ALLOWED_STATUS_TRANSITIONS } from "@/lib/format";
+import { computeComandaTotals, lockComandaForUpdate } from "@/lib/comandas";
 
 const statusSchema = z.object({
   status: z.nativeEnum(PedidoStatus),
@@ -16,6 +17,11 @@ class InvalidTransitionError extends Error {
   }
 }
 class ConcurrentUpdateError extends Error {}
+class ComandaConflictError extends Error {
+  constructor(message: string) {
+    super(message);
+  }
+}
 
 export async function PATCH(
   request: Request,
@@ -51,11 +57,66 @@ export async function PATCH(
         throw new NotFoundError();
       }
 
+      if (current.status === nextStatus) {
+        return current;
+      }
+
       const allowed = ALLOWED_STATUS_TRANSITIONS[current.status];
       if (!allowed.includes(nextStatus)) {
         throw new InvalidTransitionError(
           `Transição inválida de ${current.status} para ${nextStatus}.`
         );
+      }
+
+      if (
+        nextStatus === PedidoStatus.CANCELADO &&
+        current.origem === "BALCAO"
+      ) {
+        throw new ComandaConflictError(
+          "Para cancelar uma venda de balcão, acesse a aba Balcão e informe o motivo do cancelamento."
+        );
+      }
+
+      let itensParaEstorno = current.itens;
+
+      if (nextStatus === PedidoStatus.CANCELADO && current.comandaId) {
+        const lockedComanda = await lockComandaForUpdate(tx, current.comandaId);
+        if (lockedComanda && lockedComanda.status !== "ABERTA") {
+          throw new ComandaConflictError(
+            "Não é possível cancelar um pedido de uma comanda já fechada."
+          );
+        }
+
+        const [itensAtualizados, pedidosComanda, pagamentosAtivos] =
+          await Promise.all([
+            tx.itemPedido.findMany({ where: { pedidoId: id } }),
+            tx.pedido.findMany({
+              where: {
+                comandaId: current.comandaId,
+                status: { not: "CANCELADO" },
+                id: { not: id },
+              },
+              include: { itens: true },
+            }),
+            tx.pagamento.findMany({
+              where: { comandaId: current.comandaId, status: "ATIVO" },
+            }),
+          ]);
+
+        itensParaEstorno = itensAtualizados;
+
+        if (itensAtualizados.some((item) => item.pagamentoId !== null)) {
+          throw new ComandaConflictError(
+            "Não é possível cancelar este pedido porque um ou mais itens já foram pagos. Estorne o pagamento na comanda antes de cancelar."
+          );
+        }
+
+        const { saldo } = computeComandaTotals(pedidosComanda, pagamentosAtivos);
+        if (saldo < 0) {
+          throw new ComandaConflictError(
+            "Não é possível cancelar este pedido porque os pagamentos já registrados na comanda superam o novo total. Estorne o pagamento antes."
+          );
+        }
       }
 
       // Update condicional para impedir que dois cliques/funcionários executem a transição duas vezes
@@ -77,7 +138,7 @@ export async function PATCH(
       // Cancelar devolve estoque uma única vez, ordenado por produtoId para evitar deadlocks
       if (nextStatus === PedidoStatus.CANCELADO) {
         const restockMap = new Map<string, number>();
-        for (const item of current.itens) {
+        for (const item of itensParaEstorno) {
           if (item.produtoId) {
             restockMap.set(
               item.produtoId,
@@ -115,6 +176,9 @@ export async function PATCH(
       );
     }
     if (error instanceof InvalidTransitionError) {
+      return NextResponse.json({ error: error.message }, { status: 409 });
+    }
+    if (error instanceof ComandaConflictError) {
       return NextResponse.json({ error: error.message }, { status: 409 });
     }
     if (error instanceof ConcurrentUpdateError) {

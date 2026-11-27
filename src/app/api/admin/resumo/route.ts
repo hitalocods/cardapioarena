@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { PedidoStatus } from "@prisma/client";
+import { ComandaTipo, FormaPagamento, PedidoStatus } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireAdminApi } from "@/lib/auth";
 
@@ -54,6 +54,15 @@ function getPeriodStart(periodo: ResumoPeriodo): Date | null {
   return null;
 }
 
+function emptyFormaRecord(): Record<FormaPagamento, number> {
+  return {
+    PIX: 0,
+    CARTAO_CREDITO: 0,
+    CARTAO_DEBITO: 0,
+    DINHEIRO: 0,
+  };
+}
+
 export async function GET(request: Request) {
   const unauthorized = await requireAdminApi();
   if (unauthorized) return unauthorized;
@@ -67,7 +76,13 @@ export async function GET(request: Request) {
   try {
     const inicioPeriodo = getPeriodStart(periodo);
 
-    const [pedidosPeriodo, todosProdutos] = await Promise.all([
+    const [
+      pedidosPeriodo,
+      todosProdutos,
+      pagamentosPeriodo,
+      comandasFechadas,
+      comandasAbertas,
+    ] = await Promise.all([
       db.pedido.findMany({
         where: inicioPeriodo ? { createdAt: { gte: inicioPeriodo } } : undefined,
         orderBy: { createdAt: "desc" },
@@ -79,6 +94,32 @@ export async function GET(request: Request) {
       }),
       db.produto.findMany({
         orderBy: [{ ordem: "asc" }, { nome: "asc" }],
+      }),
+      db.pagamento.findMany({
+        where: inicioPeriodo ? { createdAt: { gte: inicioPeriodo } } : undefined,
+        orderBy: { updatedAt: "desc" },
+        include: {
+          comanda: {
+            select: {
+              id: true,
+              tipo: true,
+              mesaNumero: true,
+            },
+          },
+        },
+      }),
+      db.comanda.count({
+        where: {
+          tipo: "MESA",
+          status: "FECHADA",
+          ...(inicioPeriodo ? { fechadaEm: { gte: inicioPeriodo } } : {}),
+        },
+      }),
+      db.comanda.count({
+        where: {
+          tipo: "MESA",
+          status: "ABERTA",
+        },
       }),
     ]);
 
@@ -96,6 +137,19 @@ export async function GET(request: Request) {
     let totalValor = 0;
     let totalUnidadesVendidas = 0;
     let valorCancelado = 0;
+    let vendasBalcaoCount = 0;
+    let totalBalcaoCancelado = 0;
+
+    const vendasBalcaoCanceladas: Array<{
+      comandaId: string | null;
+      pedidoId: string;
+      numero: number;
+      nomeCliente: string;
+      total: number;
+      motivoCancelamento: string | null;
+      createdAt: string;
+      itens: Array<{ nomeSnapshot: string; quantidade: number }>;
+    }> = [];
 
     const itemAggregate = new Map<
       string,
@@ -136,29 +190,48 @@ export async function GET(request: Request) {
 
       if (pedido.status === PedidoStatus.CANCELADO) {
         valorCancelado += pedido.total;
+        if (pedido.origem === "BALCAO") {
+          totalBalcaoCancelado += pedido.total;
+          vendasBalcaoCanceladas.push({
+            comandaId: pedido.comandaId,
+            pedidoId: pedido.id,
+            numero: pedido.numero,
+            nomeCliente: pedido.nomeCliente,
+            total: pedido.total,
+            motivoCancelamento: pedido.motivoCancelamento,
+            createdAt: pedido.createdAt.toISOString(),
+            itens: pedido.itens.map((i) => ({
+              nomeSnapshot: i.nomeSnapshot,
+              quantidade: i.quantidade,
+            })),
+          });
+        }
         continue;
       }
 
       totalPedidosValidos += 1;
       totalValor += pedido.total;
+      if (pedido.origem === "BALCAO") {
+        vendasBalcaoCount += 1;
+      }
 
-      const mesaStats = mesaAggregate.get(pedido.mesaNumero) ?? {
-        mesaNumero: pedido.mesaNumero,
-        pedidos: 0,
-        faturamento: 0,
-      };
-      mesaStats.pedidos += 1;
-      mesaStats.faturamento += pedido.total;
-      mesaAggregate.set(pedido.mesaNumero, mesaStats);
+      if (pedido.mesaNumero !== null) {
+        const mesaStats = mesaAggregate.get(pedido.mesaNumero) ?? {
+          mesaNumero: pedido.mesaNumero,
+          pedidos: 0,
+          faturamento: 0,
+        };
+        mesaStats.pedidos += 1;
+        mesaStats.faturamento += pedido.total;
+        mesaAggregate.set(pedido.mesaNumero, mesaStats);
+      }
 
       const bucketKey =
         periodo === "hoje"
           ? getSaoPauloHour(pedido.createdAt)
           : getSaoPauloDateKey(pedido.createdAt);
       const bucketLabel =
-        periodo === "hoje"
-          ? `${bucketKey}h`
-          : formatDayLabel(bucketKey);
+        periodo === "hoje" ? `${bucketKey}h` : formatDayLabel(bucketKey);
 
       const bucket = serieMap.get(bucketKey) ?? {
         label: bucketLabel,
@@ -263,9 +336,63 @@ export async function GET(request: Request) {
       ),
     };
 
+    const recebidoMesasPorForma = emptyFormaRecord();
+    const recebidoBalcaoPorForma = emptyFormaRecord();
+    const recebidoPorForma = emptyFormaRecord();
+    let totalRecebidoMesas = 0;
+    let totalRecebidoBalcao = 0;
+    let totalRecebido = 0;
+    let totalEstornado = 0;
+
+    const estornos: Array<{
+      id: string;
+      comandaId: string;
+      tipo: ComandaTipo;
+      mesaNumero: number | null;
+      forma: FormaPagamento;
+      valor: number;
+      pagador: string | null;
+      recebidoPor: string | null;
+      motivoEstorno: string | null;
+      createdAt: string;
+      updatedAt: string;
+    }> = [];
+
+    for (const pag of pagamentosPeriodo) {
+      if (pag.status === "ESTORNADO") {
+        totalEstornado += pag.valor;
+        estornos.push({
+          id: pag.id,
+          comandaId: pag.comandaId,
+          tipo: pag.comanda.tipo,
+          mesaNumero: pag.comanda.mesaNumero,
+          forma: pag.forma,
+          valor: pag.valor,
+          pagador: pag.pagador,
+          recebidoPor: pag.recebidoPor,
+          motivoEstorno: pag.motivoEstorno,
+          createdAt: pag.createdAt.toISOString(),
+          updatedAt: pag.updatedAt.toISOString(),
+        });
+        continue;
+      }
+
+      recebidoPorForma[pag.forma] += pag.valor;
+      totalRecebido += pag.valor;
+
+      if (pag.comanda.tipo === "BALCAO") {
+        recebidoBalcaoPorForma[pag.forma] += pag.valor;
+        totalRecebidoBalcao += pag.valor;
+      } else {
+        recebidoMesasPorForma[pag.forma] += pag.valor;
+        totalRecebidoMesas += pag.valor;
+      }
+    }
+
     const pedidosRecentes = pedidosPeriodo.slice(0, 15).map((p) => ({
       id: p.id,
       numero: p.numero,
+      origem: p.origem,
       mesaNumero: p.mesaNumero,
       nomeCliente: p.nomeCliente,
       status: p.status,
@@ -288,6 +415,21 @@ export async function GET(request: Request) {
         cancelados: porStatus.CANCELADO,
         valorCancelado,
         porStatus,
+        recebidoMesasPorForma,
+        totalRecebidoMesas,
+        recebidoBalcaoPorForma,
+        totalRecebidoBalcao,
+        recebidoPorForma,
+        totalRecebido,
+        dinheiroEsperadoCaixa: recebidoPorForma.DINHEIRO,
+        vendasBalcaoCount,
+        comandasFechadas,
+        comandasAbertas,
+        estornos,
+        totalEstornado,
+        qtdEstornos: estornos.length,
+        vendasBalcaoCanceladas,
+        totalBalcaoCancelado,
         serie,
         maisVendidos,
         porMesa,

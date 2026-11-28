@@ -97,6 +97,11 @@
   --shadow-elevated: var(--shadow-elevated);
 }
 
+html,
+body {
+  overflow-x: clip;
+}
+
 body {
   background-color: var(--background);
   background-image:
@@ -132,7 +137,12 @@ body {
 }
 
 @media print {
-  body {
+  html,
+body {
+  overflow-x: clip;
+}
+
+body {
     background: #ffffff !important;
     background-image: none !important;
   }

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { PedidoStatus } from "@prisma/client";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { requireAdminApi } from "@/lib/auth";
+import { requireRole } from "@/lib/auth";
 import { ALLOWED_STATUS_TRANSITIONS } from "@/lib/format";
 import { computeComandaTotals, lockComandaForUpdate } from "@/lib/comandas";
 
@@ -27,8 +27,9 @@ export async function PATCH(
   request: Request,
   context: { params: Promise<{ id: string }> }
 ) {
-  const unauthorized = await requireAdminApi();
-  if (unauthorized) return unauthorized;
+  const auth = await requireRole("DONO", "ATENDENTE");
+  if (auth.response) return auth.response;
+  const executorRole = auth.role;
 
   const { id } = await context.params;
 
@@ -127,6 +128,9 @@ export async function PATCH(
         },
         data: {
           status: nextStatus,
+          ...(nextStatus === PedidoStatus.CANCELADO
+            ? { canceladoPorPerfil: executorRole }
+            : {}),
           updatedAt: new Date(),
         },
       });

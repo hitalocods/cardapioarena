@@ -159,7 +159,7 @@ export function HomeWelcomeClient({
 
         {savedCustomer ? (
           <div className="mt-5 space-y-3 sm:mt-6">
-            <p className="text-base font-bold text-[var(--foreground)]">
+            <p className="break-words text-base font-bold text-[var(--foreground)]">
               Olá, {savedCustomer.nomeCliente}
             </p>
             <Button
@@ -172,7 +172,7 @@ export function HomeWelcomeClient({
             <button
               type="button"
               onClick={handleNotMe}
-              className="text-xs font-medium text-[var(--muted-foreground)] underline underline-offset-2 hover:text-[var(--foreground)] cursor-pointer"
+              className="inline-flex min-h-11 items-center justify-center px-4 text-xs font-medium text-[var(--muted-foreground)] underline underline-offset-2 hover:text-[var(--foreground)] cursor-pointer"
             >
               Não sou eu
             </button>
@@ -220,6 +220,10 @@ export function HomeWelcomeClient({
             >
               Ver cardápio
             </Button>
+            <p className="pt-0.5 text-center text-[11px] leading-snug text-[var(--muted-foreground)]">
+              Usamos seu nome e telefone só para identificar seu pedido na
+              arena.
+            </p>
           </form>
         )}
 

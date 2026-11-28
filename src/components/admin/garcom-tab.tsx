@@ -100,15 +100,18 @@ export function GarcomTab({
   const loadBaseData = React.useCallback(async (manual = false) => {
     if (manual) setRefreshing(true);
     try {
-      const [mesasRes, comRes, prodRes] = await Promise.all([
-        fetch("/api/admin/mesas", { cache: "no-store" }),
+      const [catRes, comRes] = await Promise.all([
+        fetch("/api/admin/garcom/catalogo", { cache: "no-store" }),
         fetch("/api/admin/comandas?status=ABERTA", { cache: "no-store" }),
-        fetch("/api/admin/produtos", { cache: "no-store" }),
       ]);
 
-      if (mesasRes.ok) {
-        const mJson = (await mesasRes.json()) as { mesas: MesaItem[] };
-        setMesas(mJson.mesas.filter((m) => m.ativa));
+      if (catRes.ok) {
+        const catJson = (await catRes.json()) as {
+          mesas: MesaItem[];
+          produtos: CatalogProduto[];
+        };
+        setMesas(catJson.mesas.filter((m) => m.ativa));
+        setProdutos(catJson.produtos.filter((p) => p.ativo));
       }
 
       if (comRes.ok) {
@@ -120,11 +123,6 @@ export function GarcomTab({
           }
         }
         setAbertasByMesa(map);
-      }
-
-      if (prodRes.ok) {
-        const pJson = (await prodRes.json()) as { produtos: CatalogProduto[] };
-        setProdutos(pJson.produtos.filter((p) => p.ativo));
       }
 
       setError(null);
@@ -345,7 +343,7 @@ export function GarcomTab({
   };
 
   return (
-    <section className="flex flex-col gap-4 pb-32">
+    <section className="flex flex-col gap-4 pb-[calc(9.5rem+env(safe-area-inset-bottom))]">
       {/* Cabeçalho */}
       <div className="glass-card flex flex-wrap items-center justify-between gap-3 p-4">
         <div>
@@ -403,7 +401,7 @@ export function GarcomTab({
         </div>
 
         {loadingInit ? (
-          <div className="grid grid-cols-4 gap-2 sm:grid-cols-5">
+          <div className="grid grid-cols-3 gap-2 sm:grid-cols-5 md:grid-cols-6">
             {Array.from({ length: 8 }).map((_, i) => (
               <div
                 key={i}
@@ -416,7 +414,7 @@ export function GarcomTab({
             Nenhuma mesa ativa cadastrada. Ative mesas na aba Mesas.
           </p>
         ) : (
-          <div className="grid grid-cols-4 gap-2 sm:grid-cols-5 md:grid-cols-6">
+          <div className="grid grid-cols-3 gap-2 sm:grid-cols-5 md:grid-cols-6">
             {mesas.map((mesa) => {
               const comanda = abertasByMesa[mesa.numero];
               const isSelected = selectedMesa === mesa.numero;
@@ -425,7 +423,7 @@ export function GarcomTab({
                   key={mesa.id}
                   type="button"
                   onClick={() => handleSelectMesa(mesa.numero)}
-                  className={`relative flex flex-col items-center justify-center rounded-2xl border p-2.5 text-center transition active:scale-95 cursor-pointer ${
+                  className={`relative flex min-h-16 flex-col items-center justify-center rounded-2xl border p-2.5 text-center transition active:scale-95 cursor-pointer ${
                     isSelected
                       ? "border-[var(--brand-primary-strong)] bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)] ring-2 ring-[var(--brand-primary-strong)] shadow-xs"
                       : comanda
@@ -482,14 +480,14 @@ export function GarcomTab({
                     setSelectedPessoaKey(pessoa.telefone);
                     setError(null);
                   }}
-                  className={`inline-flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-sm font-bold transition active:scale-95 cursor-pointer ${
+                  className={`inline-flex min-h-11 items-center gap-1.5 rounded-full border px-3.5 py-2 text-sm font-bold transition active:scale-95 cursor-pointer ${
                     active
                       ? "border-[var(--brand-primary-strong)] bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)] shadow-xs"
                       : "border-[var(--border)] bg-white text-[var(--foreground)] hover:bg-[var(--surface-subtle)]"
                   }`}
                 >
-                  {active && <Check className="h-3.5 w-3.5" />}
-                  <span>{pessoa.nome}</span>
+                  {active && <Check className="h-3.5 w-3.5 shrink-0" />}
+                  <span className="break-words">{pessoa.nome}</span>
                   <span className="text-xs opacity-75">
                     ({formatCurrency(pessoa.subtotal)})
                   </span>
@@ -504,7 +502,7 @@ export function GarcomTab({
                 setSelectedPessoaKey(null);
                 setError(null);
               }}
-              className={`inline-flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-sm font-bold transition active:scale-95 cursor-pointer ${
+              className={`inline-flex min-h-11 items-center gap-1.5 rounded-full border px-3.5 py-2 text-sm font-bold transition active:scale-95 cursor-pointer ${
                 selectedPessoaKey === null
                   ? "border-[var(--brand-primary-strong)] bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)] shadow-xs"
                   : "border-dashed border-[var(--border)] bg-white/80 text-[var(--foreground)] hover:bg-white"
@@ -578,7 +576,7 @@ export function GarcomTab({
                 key={cat}
                 type="button"
                 onClick={() => setCategoria(cat)}
-                className={`shrink-0 rounded-full px-3.5 py-1.5 text-xs font-bold transition cursor-pointer ${
+                className={`min-h-11 shrink-0 rounded-full px-3.5 py-1.5 text-xs font-bold transition cursor-pointer sm:min-h-9 ${
                   active
                     ? "bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)]"
                     : "border border-[var(--border)] bg-white text-[var(--muted-foreground)]"
@@ -612,7 +610,7 @@ export function GarcomTab({
                 >
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-1.5">
-                      <span className="font-bold text-[var(--foreground)]">
+                      <span className="break-words font-bold text-[var(--foreground)]">
                         {prod.nome}
                       </span>
                       {outOfStock && (
@@ -629,12 +627,12 @@ export function GarcomTab({
                     </p>
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex shrink-0 items-center gap-2">
                     <Button
                       type="button"
                       variant="outline"
                       size="icon"
-                      className="h-10 w-10 rounded-full"
+                      className="h-11 w-11 rounded-full"
                       disabled={qty <= 0}
                       onClick={() => handleQtyDelta(prod, -1)}
                       aria-label={`Remover ${prod.nome}`}
@@ -647,7 +645,7 @@ export function GarcomTab({
                     <Button
                       type="button"
                       size="icon"
-                      className="h-10 w-10 rounded-full"
+                      className="h-11 w-11 rounded-full"
                       disabled={outOfStock || atMax}
                       onClick={() => handleQtyDelta(prod, 1)}
                       aria-label={`Adicionar ${prod.nome}`}
@@ -715,7 +713,7 @@ export function GarcomTab({
       </div>
 
       {/* Rodapé fixo no celular com resumo e botão Lançar pedido */}
-      <div className="fixed inset-x-0 bottom-0 z-30 mx-auto max-w-5xl px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-2">
+      <div className="fixed inset-x-0 bottom-0 z-30 mx-auto max-w-7xl px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-2">
         <div className="glass-bar flex items-center justify-between gap-3 rounded-[1.5rem] px-4 py-3">
           <div className="min-w-0">
             <p className="truncate text-xs font-semibold text-[var(--muted-foreground)]">

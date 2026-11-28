@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { requireAdminApi } from "@/lib/auth";
+import { requireRole } from "@/lib/auth";
 import {
   computeComandaTotals,
   loadComandaDetail,
@@ -29,8 +29,9 @@ export async function POST(
   request: Request,
   context: { params: Promise<{ id: string }> }
 ) {
-  const unauthorized = await requireAdminApi();
-  if (unauthorized) return unauthorized;
+  const auth = await requireRole("DONO", "ATENDENTE");
+  if (auth.response) return auth.response;
+  const executorRole = auth.role;
 
   const { id: comandaId } = await context.params;
 
@@ -76,6 +77,16 @@ export async function POST(
 
         const { saldo } = computeComandaTotals(pedidos, pagamentosAtivos);
 
+        if (saldo > 0 || forcarComSaldo) {
+          if (executorRole !== "DONO") {
+            throw new FecharComandaError(
+              403,
+              "Apenas o Dono pode fechar uma mesa com saldo pendente.",
+              saldo
+            );
+          }
+        }
+
         if (saldo > 0) {
           if (!forcarComSaldo || motivo.length < 3) {
             throw new FecharComandaError(
@@ -95,6 +106,7 @@ export async function POST(
             pediuConta: false,
             pediuContaDetalhes: null,
             motivoFechamentoPendente: saldo > 0 ? motivo : null,
+            fechadaPorPerfil: executorRole,
           },
         });
 

@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { db } from "@/lib/db";
-import { isAdminAuthenticated } from "@/lib/auth";
+import { getAdminSession } from "@/lib/auth";
 import { isValidHttpUrl } from "@/lib/qr-url";
 import { PrintableQrClient } from "@/components/admin/printable-qr-client";
 
@@ -12,9 +12,12 @@ async function PrintableQrGate({
   searchParams: Promise<{ url?: string }>;
 }) {
   await connection();
-  const authenticated = await isAdminAuthenticated();
-  if (!authenticated) {
+  const session = await getAdminSession();
+  if (!session) {
     redirect("/admin/login");
+  }
+  if (session.role !== "DONO") {
+    redirect("/admin?tab=pedidos");
   }
 
   const [{ url }, mesas] = await Promise.all([

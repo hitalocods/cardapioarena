@@ -325,7 +325,7 @@ export function EstoqueTab({
                 key={opt.value}
                 type="button"
                 onClick={() => setMode(opt.value)}
-                className={`rounded-full border px-3.5 py-2 text-xs font-bold transition cursor-pointer ${
+                className={`min-h-11 rounded-full border px-3.5 py-2 text-xs font-bold transition cursor-pointer sm:min-h-9 ${
                   mode === opt.value
                     ? "border-[var(--brand-primary-strong)] bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)]"
                     : "border-[var(--border)] bg-white/80 text-[var(--muted-foreground)] hover:bg-white"
@@ -344,7 +344,7 @@ export function EstoqueTab({
                 key={cat}
                 type="button"
                 onClick={() => setCategoria(cat)}
-                className={`shrink-0 rounded-full border px-3 py-1 text-xs font-bold transition cursor-pointer ${
+                className={`min-h-11 shrink-0 rounded-full border px-3.5 py-1.5 text-xs font-bold transition cursor-pointer sm:min-h-9 ${
                   categoria === cat
                     ? "border-[var(--brand-primary-strong)] bg-[var(--brand-primary-soft)] text-[var(--brand-primary-foreground)]"
                     : "border-[var(--border)] bg-white/70 text-[var(--muted-foreground)] hover:bg-white"
@@ -420,7 +420,7 @@ export function EstoqueTab({
 
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-1.5">
-                        <h3 className="text-base font-bold text-[var(--foreground)]">
+                        <h3 className="break-words text-base font-bold text-[var(--foreground)]">
                           {item.nome}
                         </h3>
                         <Badge variant="secondary">{item.categoria}</Badge>
@@ -475,6 +475,7 @@ export function EstoqueTab({
                         <Input
                           id={`est-${item.id}`}
                           type="number"
+                          inputMode="numeric"
                           min={0}
                           max={99999}
                           value={estDraft}
@@ -484,7 +485,7 @@ export function EstoqueTab({
                               [item.id]: e.target.value,
                             }))
                           }
-                          className="mt-1 h-10 w-24 text-center font-bold"
+                          className="mt-1 h-11 w-24 text-center font-bold"
                         />
                       </div>
 
@@ -498,6 +499,7 @@ export function EstoqueTab({
                         <Input
                           id={`min-${item.id}`}
                           type="number"
+                          inputMode="numeric"
                           min={0}
                           max={99999}
                           value={minDraft}
@@ -507,7 +509,7 @@ export function EstoqueTab({
                               [item.id]: e.target.value,
                             }))
                           }
-                          className="mt-1 h-10 w-24 text-center font-bold"
+                          className="mt-1 h-11 w-24 text-center font-bold"
                         />
                       </div>
 
@@ -515,7 +517,7 @@ export function EstoqueTab({
                         size="sm"
                         disabled={busyId === item.id || !dirty}
                         onClick={() => void handleSaveNumbers(item)}
-                        className="h-10"
+                        className="min-h-11 sm:min-h-10"
                       >
                         <Check className="h-4 w-4" />
                         Salvar
@@ -533,7 +535,7 @@ export function EstoqueTab({
                             (delta < 0 && item.estoque <= 0)
                           }
                           onClick={() => void handleQuickDelta(item, delta)}
-                          className="h-9 px-3 font-bold"
+                          className="min-h-11 px-3 font-bold sm:min-h-9"
                         >
                           {delta > 0 ? `+${delta}` : delta}
                         </Button>

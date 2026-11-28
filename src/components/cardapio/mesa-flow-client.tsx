@@ -140,7 +140,7 @@ export function MesaFlowClient({
     nomeInput.trim().length >= 2 && normalizeBrPhone(telefoneInput).length >= 10;
 
   return (
-    <main className="arena-grid relative flex min-h-dvh flex-col items-center justify-start overflow-y-auto px-5 pb-16 pt-6 sm:justify-center sm:py-10">
+    <main className="arena-grid relative flex min-h-dvh flex-col items-center justify-start overflow-y-auto px-4 pb-16 pt-[calc(1.5rem+env(safe-area-inset-top))] sm:justify-center sm:px-5 sm:py-10">
       <div className="pointer-events-none absolute inset-x-0 top-0 h-64 bg-[radial-gradient(ellipse_at_50%_0%,rgba(162,207,156,0.45),transparent_70%)]" />
 
       <section className="relative mx-auto flex w-full max-w-md flex-col justify-center">
@@ -165,7 +165,7 @@ export function MesaFlowClient({
 
         {savedCustomer ? (
           <div className="mt-6 space-y-3 text-center sm:mt-8">
-            <p className="text-lg font-bold text-[var(--foreground)]">
+            <p className="break-words text-lg font-bold text-[var(--foreground)]">
               Olá, {savedCustomer.nomeCliente}
             </p>
             <Button
@@ -178,7 +178,7 @@ export function MesaFlowClient({
             <button
               type="button"
               onClick={handleNotMe}
-              className="text-xs font-medium text-[var(--muted-foreground)] underline underline-offset-2 hover:text-[var(--foreground)] cursor-pointer"
+              className="inline-flex min-h-11 items-center justify-center px-4 text-xs font-medium text-[var(--muted-foreground)] underline underline-offset-2 hover:text-[var(--foreground)] cursor-pointer"
             >
               Não sou eu
             </button>
@@ -226,6 +226,10 @@ export function MesaFlowClient({
             >
               Ver cardápio
             </Button>
+            <p className="pt-0.5 text-center text-[11px] leading-snug text-[var(--muted-foreground)]">
+              Usamos seu nome e telefone só para identificar seu pedido na
+              arena.
+            </p>
           </form>
         )}
       </section>

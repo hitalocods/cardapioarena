@@ -119,7 +119,7 @@ export function BalcaoVendaModal({
       }
     }, 0);
 
-    fetch("/api/admin/produtos", { cache: "no-store" })
+    fetch("/api/admin/garcom/catalogo", { cache: "no-store" })
       .then(async (res) => {
         if (!active) return;
         if (!res.ok) {
@@ -438,7 +438,7 @@ export function BalcaoVendaModal({
                   key={cat}
                   type="button"
                   onClick={() => setCategoria(cat)}
-                  className={`shrink-0 rounded-full px-3 py-1 text-xs font-bold transition cursor-pointer ${
+                  className={`min-h-11 shrink-0 rounded-full px-3.5 py-1.5 text-xs font-bold transition cursor-pointer sm:min-h-8 ${
                     active
                       ? "bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)]"
                       : "border border-[var(--border)] bg-white text-[var(--muted-foreground)]"
@@ -478,7 +478,7 @@ export function BalcaoVendaModal({
                       }`}
                     >
                       <div className="min-w-0 flex-1">
-                        <p className="truncate font-bold text-[var(--foreground)]">
+                        <p className="break-words font-bold text-[var(--foreground)]">
                           {prod.nome}
                         </p>
                         <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--muted-foreground)]">
@@ -496,17 +496,17 @@ export function BalcaoVendaModal({
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex shrink-0 items-center gap-1.5">
                         <Button
                           type="button"
                           variant="outline"
                           size="icon"
-                          className="h-8 w-8 rounded-full"
+                          className="h-11 w-11 rounded-full sm:h-9 sm:w-9"
                           disabled={qty <= 0}
                           onClick={() => handleQtyDelta(prod, -1)}
                           aria-label={`Remover 1 ${prod.nome}`}
                         >
-                          <Minus className="h-3.5 w-3.5" />
+                          <Minus className="h-4 w-4" />
                         </Button>
                         <span className="min-w-6 text-center text-sm font-black">
                           {qty}
@@ -514,12 +514,12 @@ export function BalcaoVendaModal({
                         <Button
                           type="button"
                           size="icon"
-                          className="h-8 w-8 rounded-full"
+                          className="h-11 w-11 rounded-full sm:h-9 sm:w-9"
                           disabled={outOfStock || atMax}
                           onClick={() => handleQtyDelta(prod, 1)}
                           aria-label={`Adicionar 1 ${prod.nome}`}
                         >
-                          <Plus className="h-3.5 w-3.5" />
+                          <Plus className="h-4 w-4" />
                         </Button>
                       </div>
                     </li>
@@ -615,7 +615,7 @@ export function BalcaoVendaModal({
                             )
                           );
                         }}
-                        className={`flex items-center justify-center gap-1.5 rounded-xl border px-2.5 py-2 text-xs font-bold transition cursor-pointer ${
+                        className={`flex min-h-11 items-center justify-center gap-1.5 rounded-xl border px-2.5 py-2 text-xs font-bold transition cursor-pointer ${
                           active
                             ? "border-[var(--brand-primary-strong)] bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)]"
                             : "border-[var(--border)] bg-white text-[var(--foreground)] hover:bg-[var(--surface-subtle)]"

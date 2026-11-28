@@ -36,22 +36,27 @@ async function postOrder(payload: {
   return { status: res.status, body };
 }
 
-async function loginAdmin(): Promise<string> {
-  const password = process.env.ADMIN_PASSWORD;
-  assert(
-    password && password.length > 0,
-    "ADMIN_PASSWORD precisa estar definido no ambiente para testar rotas /api/admin/*"
-  );
-
+async function loginAs(
+  password: string,
+  expectedRole: "DONO" | "ATENDENTE"
+): Promise<string> {
   const res = await fetch(`${BASE_URL}/api/admin/login`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "x-forwarded-for": "198.51.100.250",
+      "x-forwarded-for": `198.51.100.${expectedRole === "DONO" ? "250" : "251"}`,
     },
     body: JSON.stringify({ password }),
   });
-  assert(res.status === 200, `Login admin falhou com status ${res.status}`);
+  assert(
+    res.status === 200,
+    `Login ${expectedRole} falhou com status ${res.status}`
+  );
+  const body = (await res.json()) as { ok?: boolean; role?: string };
+  assert(
+    body.role === expectedRole,
+    `Esperava role=${expectedRole} no login, recebeu ${body.role}`
+  );
 
   const setCookie = res.headers.get("set-cookie");
   assert(setCookie, "Cookie de sessão admin não retornado no login.");
@@ -61,6 +66,15 @@ async function loginAdmin(): Promise<string> {
     `Cookie inválido retornado no login: ${cookiePair}`
   );
   return cookiePair;
+}
+
+async function loginAdmin(): Promise<string> {
+  const password = process.env.ADMIN_PASSWORD;
+  assert(
+    password && password.length > 0,
+    "ADMIN_PASSWORD precisa estar definido no ambiente para testar rotas /api/admin/*"
+  );
+  return loginAs(password, "DONO");
 }
 
 async function postAdminPagamento(
@@ -1078,7 +1092,367 @@ async function main() {
       "PASS 15: Disputa pela última unidade no Modo Garçom -> 1 aprovado (201), 1 bloqueado (409), estoque = 0."
     );
 
-    console.log("\nTODOS OS TESTES DE CONCORRÊNCIA E COMANDA PASSARAM!");
+    // ------------------------------------------------------------------
+    // 16) Segurança de Cookie (sem cookie -> 401; cookie adulterado -> 401)
+    // ------------------------------------------------------------------
+    const atendentePassword = process.env.ATENDENTE_PASSWORD;
+    assert(
+      atendentePassword && atendentePassword.length > 0,
+      "ATENDENTE_PASSWORD precisa estar definido no ambiente para testar permissões"
+    );
+    const atendenteCookie = await loginAs(atendentePassword, "ATENDENTE");
+
+    const noCookieRes = await fetch(`${BASE_URL}/api/admin/pedidos`);
+    assert(
+      noCookieRes.status === 401,
+      `Requisição sem cookie deveria retornar 401, recebeu ${noCookieRes.status}`
+    );
+
+    const tokenValue = atendenteCookie.split("=")[1] ?? "";
+    const tokenParts = tokenValue.split(".");
+    assert(tokenParts.length === 4, "Token de sessão deveria ter 4 partes");
+
+    const forgedRoleCookie = `ahb_admin_session=${tokenParts[0]}.DONO.${tokenParts[2]}.${tokenParts[3]}`;
+    const forgedRes = await fetch(`${BASE_URL}/api/admin/resumo`, {
+      headers: { Cookie: forgedRoleCookie },
+    });
+    assert(
+      forgedRes.status === 401,
+      `Cookie com perfil adulterado para DONO deveria retornar 401, recebeu ${forgedRes.status}`
+    );
+
+    const badSigCookie = `ahb_admin_session=${tokenParts[0]}.${tokenParts[1]}.${tokenParts[2]}.${tokenParts[3]}X`;
+    const badSigRes = await fetch(`${BASE_URL}/api/admin/pedidos`, {
+      headers: { Cookie: badSigCookie },
+    });
+    assert(
+      badSigRes.status === 401,
+      `Cookie com assinatura adulterada deveria retornar 401, recebeu ${badSigRes.status}`
+    );
+    console.log(
+      "PASS 16: Cookie ausente, perfil adulterado e assinatura adulterada recusados com 401."
+    );
+
+    // ------------------------------------------------------------------
+    // 17) Permissões ATENDENTE -> 403 em TODAS as rotas restritas + 200/201 nas permitidas
+    // ------------------------------------------------------------------
+    const mesaPermRecord = await prisma.mesa.findUniqueOrThrow({
+      where: { numero: mesaGarcom },
+    });
+
+    // Cria uma comanda com saldo e pagamento + 1 venda de balcão como ATENDENTE para testar rotas restritas neles
+    const permOrderKey = crypto.randomUUID();
+    createdKeys.push(permOrderKey);
+    const permOrderRes = await fetch(`${BASE_URL}/api/admin/garcom/pedidos`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Cookie: atendenteCookie,
+      },
+      body: JSON.stringify({
+        idempotencyKey: permOrderKey,
+        mesaNumero: mesaGarcom,
+        nomeCliente: "Cliente Perm",
+        enviarCozinha: false,
+        itens: [{ produtoId: prodUncontrolled.id, quantidade: 2 }], // 2400
+      }),
+    });
+    assert(
+      permOrderRes.status === 201,
+      `Atendente deveria conseguir lançar pedido (201), recebeu ${permOrderRes.status}`
+    );
+    const permOrderBody = await permOrderRes.json();
+    const permComandaId = permOrderBody.comandaId as string;
+
+    const permPayRes = await postAdminPagamento(atendenteCookie, permComandaId, {
+      tipo: "VALOR_LIVRE",
+      idempotencyKey: crypto.randomUUID(),
+      valor: 400,
+      forma: "PIX",
+    });
+    assert(
+      permPayRes.status === 201 &&
+        permPayRes.body?.pagamento?.executadoPorPerfil === "ATENDENTE",
+      `Atendente deveria registrar pagamento com executadoPorPerfil=ATENDENTE (status=${permPayRes.status})`
+    );
+    const permPagId = permPayRes.body.pagamento.id as string;
+
+    const permBalcaoKey = crypto.randomUUID();
+    createdKeys.push(permBalcaoKey);
+    const permBalcaoRes = await fetch(`${BASE_URL}/api/admin/balcao/vendas`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Cookie: atendenteCookie,
+      },
+      body: JSON.stringify({
+        idempotencyKey: permBalcaoKey,
+        itens: [{ produtoId: prodUncontrolled.id, quantidade: 1 }], // 1200
+        pagamentos: [{ forma: "DINHEIRO", valor: 1200 }],
+      }),
+    });
+    const permBalcaoBody = await permBalcaoRes.json();
+    assert(
+      permBalcaoRes.status === 201 &&
+        permBalcaoBody?.venda?.pagamentos?.[0]?.executadoPorPerfil ===
+          "ATENDENTE",
+      `Atendente deveria registrar venda de balcão com perfil ATENDENTE (status=${permBalcaoRes.status})`
+    );
+    const permBalcaoComandaId = permBalcaoBody.venda.comandaId as string;
+    createdBalcaoComandaIds.push(permBalcaoComandaId);
+
+    const restrictedChecks: Array<{
+      label: string;
+      path: string;
+      method: string;
+      body?: Record<string, unknown>;
+    }> = [
+      { label: "GET /api/admin/resumo", path: "/api/admin/resumo", method: "GET" },
+      { label: "GET /api/admin/produtos", path: "/api/admin/produtos", method: "GET" },
+      {
+        label: "POST /api/admin/produtos",
+        path: "/api/admin/produtos",
+        method: "POST",
+        body: { nome: "Teste", preco: 500 },
+      },
+      {
+        label: "PATCH /api/admin/produtos/[id]",
+        path: `/api/admin/produtos/${prodUncontrolled.id}`,
+        method: "PATCH",
+        body: { nome: "Alterado" },
+      },
+      {
+        label: "DELETE /api/admin/produtos/[id]",
+        path: `/api/admin/produtos/${prodUncontrolled.id}`,
+        method: "DELETE",
+      },
+      { label: "GET /api/admin/estoque", path: "/api/admin/estoque", method: "GET" },
+      {
+        label: "PATCH /api/admin/produtos/[id]/estoque",
+        path: `/api/admin/produtos/${prodUncontrolled.id}/estoque`,
+        method: "PATCH",
+        body: { delta: 1 },
+      },
+      { label: "GET /api/admin/mesas", path: "/api/admin/mesas", method: "GET" },
+      {
+        label: "PUT /api/admin/mesas",
+        path: "/api/admin/mesas",
+        method: "PUT",
+        body: { quantidade: 10 },
+      },
+      {
+        label: "PATCH /api/admin/mesas/[id]",
+        path: `/api/admin/mesas/${mesaPermRecord.id}`,
+        method: "PATCH",
+        body: { ativa: true },
+      },
+      { label: "POST /api/admin/upload", path: "/api/admin/upload", method: "POST" },
+      {
+        label: "POST /api/admin/push/test",
+        path: "/api/admin/push/test",
+        method: "POST",
+      },
+      {
+        label: "POST estornar pagamento",
+        path: `/api/admin/comandas/${permComandaId}/pagamentos/${permPagId}/estornar`,
+        method: "POST",
+        body: { motivo: "Teste atendente" },
+      },
+      {
+        label: "POST cancelar venda balcão",
+        path: `/api/admin/balcao/vendas/${permBalcaoComandaId}/cancelar`,
+        method: "POST",
+        body: { motivo: "Teste atendente" },
+      },
+      {
+        label: "POST fechar mesa com saldo pendente",
+        path: `/api/admin/comandas/${permComandaId}/fechar`,
+        method: "POST",
+        body: { forcarComSaldo: true, motivo: "Tentativa atendente" },
+      },
+      {
+        label: "GET balcão período 7d",
+        path: "/api/admin/balcao/vendas?periodo=7d",
+        method: "GET",
+      },
+    ];
+
+    for (const check of restrictedChecks) {
+      const r = await fetch(`${BASE_URL}${check.path}`, {
+        method: check.method,
+        headers: {
+          Cookie: atendenteCookie,
+          ...(check.body ? { "Content-Type": "application/json" } : {}),
+        },
+        ...(check.body ? { body: JSON.stringify(check.body) } : {}),
+      });
+      assert(
+        r.status === 403,
+        `ATENDENTE deveria receber 403 em ${check.label}, recebeu ${r.status}`
+      );
+    }
+
+    // Verifica rotas permitidas ao ATENDENTE
+    const allowedAtendente = await Promise.all([
+      fetch(`${BASE_URL}/api/admin/pedidos`, { headers: { Cookie: atendenteCookie } }),
+      fetch(`${BASE_URL}/api/admin/comandas?status=ABERTA`, {
+        headers: { Cookie: atendenteCookie },
+      }),
+      fetch(`${BASE_URL}/api/admin/garcom/catalogo`, {
+        headers: { Cookie: atendenteCookie },
+      }),
+      fetch(`${BASE_URL}/api/admin/balcao/vendas?periodo=hoje`, {
+        headers: { Cookie: atendenteCookie },
+      }),
+    ]);
+    for (const r of allowedAtendente) {
+      assert(
+        r.status === 200,
+        `Rota permitida ao ATENDENTE retornou ${r.status} (${r.url})`
+      );
+    }
+
+    // ATENDENTE pode fechar comanda com saldo zerado (usa a mesa do mcComanda ou quita uma comanda nova)
+    const mesaZeroKey = crypto.randomUUID();
+    createdKeys.push(mesaZeroKey);
+    const zeroOrderRes = await fetch(`${BASE_URL}/api/admin/garcom/pedidos`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Cookie: atendenteCookie,
+      },
+      body: JSON.stringify({
+        idempotencyKey: mesaZeroKey,
+        mesaNumero: testMesaNumbers[4]!,
+        nomeCliente: "Fecha Zero",
+        enviarCozinha: false,
+        itens: [{ produtoId: prodUncontrolled.id, quantidade: 1 }],
+      }),
+    });
+    const zeroComandaId = (await zeroOrderRes.json()).comandaId as string;
+    const payZeroRes = await postAdminPagamento(atendenteCookie, zeroComandaId, {
+      tipo: "SALDO_TOTAL",
+      idempotencyKey: crypto.randomUUID(),
+      forma: "CARTAO_DEBITO",
+    });
+    assert(payZeroRes.status === 201, "Falha ao quitar comanda de saldo zero");
+    const fecharZeroAtendente = await fetch(
+      `${BASE_URL}/api/admin/comandas/${zeroComandaId}/fechar`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Cookie: atendenteCookie,
+        },
+        body: JSON.stringify({}),
+      }
+    );
+    assert(
+      fecharZeroAtendente.status === 200,
+      `ATENDENTE deveria conseguir fechar comanda zerada, recebeu ${fecharZeroAtendente.status}`
+    );
+    const zeroComandaDb = await prisma.comanda.findUniqueOrThrow({
+      where: { id: zeroComandaId },
+    });
+    assert(
+      zeroComandaDb.fechadaPorPerfil === "ATENDENTE",
+      `Esperava fechadaPorPerfil=ATENDENTE, recebeu ${zeroComandaDb.fechadaPorPerfil}`
+    );
+    console.log(
+      `PASS 17: ATENDENTE recebeu 403 em todas as ${restrictedChecks.length} rotas restritas e 200/201 nas permitidas.`
+    );
+
+    // ------------------------------------------------------------------
+    // 18) Permissões DONO -> acessa todas + grava perfil em estorno, cancelamento e fechamento pendente
+    // ------------------------------------------------------------------
+    const donoAllowed = await Promise.all([
+      fetch(`${BASE_URL}/api/admin/resumo?periodo=hoje`, {
+        headers: { Cookie: adminCookie },
+      }),
+      fetch(`${BASE_URL}/api/admin/produtos`, { headers: { Cookie: adminCookie } }),
+      fetch(`${BASE_URL}/api/admin/estoque`, { headers: { Cookie: adminCookie } }),
+      fetch(`${BASE_URL}/api/admin/mesas`, { headers: { Cookie: adminCookie } }),
+    ]);
+    for (const r of donoAllowed) {
+      assert(r.status === 200, `DONO deveria receber 200 em ${r.url}, recebeu ${r.status}`);
+    }
+
+    const donoEstornoRes = await fetch(
+      `${BASE_URL}/api/admin/comandas/${permComandaId}/pagamentos/${permPagId}/estornar`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Cookie: adminCookie,
+        },
+        body: JSON.stringify({ motivo: "Teste estorno DONO" }),
+      }
+    );
+    assert(
+      donoEstornoRes.status === 200,
+      `DONO deveria estornar pagamento (200), recebeu ${donoEstornoRes.status}`
+    );
+    const estornoPagDb = await prisma.pagamento.findUniqueOrThrow({
+      where: { id: permPagId },
+    });
+    assert(
+      estornoPagDb.estornadoPorPerfil === "DONO",
+      `Esperava estornadoPorPerfil=DONO, recebeu ${estornoPagDb.estornadoPorPerfil}`
+    );
+
+    const donoCancelBalcaoRes = await fetch(
+      `${BASE_URL}/api/admin/balcao/vendas/${permBalcaoComandaId}/cancelar`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Cookie: adminCookie,
+        },
+        body: JSON.stringify({ motivo: "Teste cancelamento balcão DONO" }),
+      }
+    );
+    assert(
+      donoCancelBalcaoRes.status === 200,
+      `DONO deveria cancelar venda de balcão (200), recebeu ${donoCancelBalcaoRes.status}`
+    );
+    const cancelBalcaoPedidoDb = await prisma.pedido.findUniqueOrThrow({
+      where: { idempotencyKey: permBalcaoKey },
+    });
+    assert(
+      cancelBalcaoPedidoDb.canceladoPorPerfil === "DONO",
+      `Esperava canceladoPorPerfil=DONO, recebeu ${cancelBalcaoPedidoDb.canceladoPorPerfil}`
+    );
+
+    const donoFecharPendenteRes = await fetch(
+      `${BASE_URL}/api/admin/comandas/${permComandaId}/fechar`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Cookie: adminCookie,
+        },
+        body: JSON.stringify({
+          forcarComSaldo: true,
+          motivo: "Teste fechamento pendente DONO",
+        }),
+      }
+    );
+    assert(
+      donoFecharPendenteRes.status === 200,
+      `DONO deveria fechar mesa com saldo pendente + motivo (200), recebeu ${donoFecharPendenteRes.status}`
+    );
+    const permComandaDb = await prisma.comanda.findUniqueOrThrow({
+      where: { id: permComandaId },
+    });
+    assert(
+      permComandaDb.fechadaPorPerfil === "DONO",
+      `Esperava fechadaPorPerfil=DONO, recebeu ${permComandaDb.fechadaPorPerfil}`
+    );
+    console.log(
+      "PASS 18: DONO acessou todas as rotas restritas e gravou perfil DONO em estorno, cancelamento e fechamento pendente."
+    );
+
+    console.log("\nTODOS OS TESTES DE CONCORRÊNCIA E PERMISSÕES PASSARAM!");
   } finally {
     await prisma.pedido.deleteMany({
       where: { idempotencyKey: { in: createdKeys } },

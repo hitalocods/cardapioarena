@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { put } from "@vercel/blob";
-import { requireAdminApi } from "@/lib/auth";
+import { requireRole } from "@/lib/auth";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ALLOWED_MIME = new Set([
@@ -12,8 +12,8 @@ const ALLOWED_MIME = new Set([
 ]);
 
 export async function POST(request: Request) {
-  const unauthorized = await requireAdminApi();
-  if (unauthorized) return unauthorized;
+  const auth = await requireRole("DONO");
+  if (auth.response) return auth.response;
 
   if (!process.env.BLOB_READ_WRITE_TOKEN) {
     return NextResponse.json(

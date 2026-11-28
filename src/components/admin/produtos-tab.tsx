@@ -370,7 +370,7 @@ export function ProdutosTab() {
                 key={cat}
                 type="button"
                 onClick={() => setCategoryFilter(cat)}
-                className={`shrink-0 rounded-full border px-4 py-1.5 text-xs font-bold transition cursor-pointer ${
+                className={`min-h-11 shrink-0 rounded-full border px-4 py-1.5 text-xs font-bold transition cursor-pointer sm:min-h-9 ${
                   active
                     ? "border-[var(--brand-primary-strong)] bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)] shadow-xs"
                     : "border-[var(--border)] bg-white/80 text-[var(--muted-foreground)] hover:bg-white hover:text-[var(--foreground)]"
@@ -457,7 +457,7 @@ export function ProdutosTab() {
                       <span className="text-xs font-mono text-[var(--muted-foreground)]">
                         #{p.ordem}
                       </span>
-                      <h3 className="text-base font-bold text-[var(--foreground)]">
+                      <h3 className="break-words text-base font-bold text-[var(--foreground)]">
                         {p.nome}
                       </h3>
                       <Badge variant="secondary">{p.categoria}</Badge>
@@ -466,7 +466,7 @@ export function ProdutosTab() {
                       {isLow && <Badge variant="warning">Estoque baixo</Badge>}
                     </div>
                     {p.descricao && (
-                      <p className="truncate text-xs text-[var(--muted-foreground)]">
+                      <p className="break-words text-xs text-[var(--muted-foreground)]">
                         {p.descricao}
                       </p>
                     )}
@@ -491,6 +491,7 @@ export function ProdutosTab() {
                       </Button>
                       <Input
                         type="number"
+                        inputMode="numeric"
                         min={0}
                         max={99999}
                         value={draftVal}
@@ -512,7 +513,7 @@ export function ProdutosTab() {
                           }
                         }}
                         aria-label={`Estoque de ${p.nome}`}
-                        className="h-10 w-20 rounded-xl text-center font-bold px-2"
+                        className="h-11 w-20 rounded-xl px-2 text-center font-bold sm:h-10"
                       />
                       <Button
                         variant="outline"
@@ -578,8 +579,40 @@ export function ProdutosTab() {
           if (!saving) setDialogOpen(open);
         }}
         title={editingId ? "Editar produto" : "Novo produto"}
+        footer={
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setDialogOpen(false)}
+              disabled={saving}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="submit"
+              form="produto-form"
+              size="lg"
+              disabled={saving || uploading}
+              className="flex-1 sm:flex-initial"
+            >
+              {saving ? (
+                <>
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                  Salvando...
+                </>
+              ) : (
+                "Salvar produto"
+              )}
+            </Button>
+          </div>
+        }
       >
-        <form onSubmit={handleSave} className="flex flex-col gap-4">
+        <form
+          id="produto-form"
+          onSubmit={handleSave}
+          className="flex flex-col gap-4"
+        >
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="prod-nome">Nome</Label>
@@ -644,6 +677,7 @@ export function ProdutosTab() {
               <Input
                 id="prod-ordem"
                 type="number"
+                inputMode="numeric"
                 min={0}
                 value={form.ordem}
                 onChange={(e) => setForm({ ...form, ordem: e.target.value })}
@@ -654,8 +688,8 @@ export function ProdutosTab() {
           {/* Foto (Vercel Blob) */}
           <div className="flex flex-col gap-2">
             <Label htmlFor="prod-foto-url">Foto do produto</Label>
-            <div className="flex items-center gap-2">
-              <label className="inline-flex h-11 cursor-pointer items-center gap-2 rounded-2xl border border-[var(--border)] bg-white px-4 text-sm font-semibold hover:bg-[var(--surface-subtle)]">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <label className="inline-flex h-11 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-2xl border border-[var(--border)] bg-white px-4 text-sm font-semibold hover:bg-[var(--surface-subtle)]">
                 {uploading ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
@@ -708,6 +742,7 @@ export function ProdutosTab() {
                 <Input
                   id="prod-estoque"
                   type="number"
+                  inputMode="numeric"
                   min={0}
                   value={form.estoque}
                   onChange={(e) =>
@@ -720,6 +755,7 @@ export function ProdutosTab() {
                 <Input
                   id="prod-min"
                   type="number"
+                  inputMode="numeric"
                   min={0}
                   value={form.estoqueMinimo}
                   onChange={(e) =>
@@ -735,17 +771,6 @@ export function ProdutosTab() {
               {formError}
             </div>
           )}
-
-          <Button type="submit" size="lg" disabled={saving || uploading}>
-            {saving ? (
-              <>
-                <Loader2 className="h-5 w-5 animate-spin" />
-                Salvando...
-              </>
-            ) : (
-              "Salvar produto"
-            )}
-          </Button>
         </form>
       </Dialog>
     </section>

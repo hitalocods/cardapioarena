@@ -1,16 +1,16 @@
 import { Suspense } from "react";
 import { connection } from "next/server";
 import { redirect } from "next/navigation";
-import { isAdminAuthenticated } from "@/lib/auth";
+import { getAdminSession } from "@/lib/auth";
 import { AdminDashboard } from "@/components/admin/admin-dashboard";
 
 async function AdminGate() {
   await connection();
-  const authenticated = await isAdminAuthenticated();
-  if (!authenticated) {
+  const session = await getAdminSession();
+  if (!session) {
     redirect("/admin/login");
   }
-  return <AdminDashboard />;
+  return <AdminDashboard role={session.role} />;
 }
 
 export default function AdminPage() {

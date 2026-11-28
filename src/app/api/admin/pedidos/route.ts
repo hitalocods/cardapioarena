@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { requireAdminApi } from "@/lib/auth";
+import { requireRole } from "@/lib/auth";
 import { OPEN_ORDER_STATUSES } from "@/lib/format";
 
 export async function GET(request: Request) {
-  const unauthorized = await requireAdminApi();
-  if (unauthorized) return unauthorized;
+  const auth = await requireRole("DONO", "ATENDENTE");
+  if (auth.response) return auth.response;
 
   const { searchParams } = new URL(request.url);
   const onlyOpen = searchParams.get("abertos") !== "false";

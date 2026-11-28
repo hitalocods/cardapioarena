@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import { ComandaStatus } from "@prisma/client";
 import { db } from "@/lib/db";
-import { requireAdminApi } from "@/lib/auth";
+import { requireRole } from "@/lib/auth";
 import { buildComandaSummaryDTO } from "@/lib/comandas";
 
 export async function GET(request: Request) {
-  const unauthorized = await requireAdminApi();
-  if (unauthorized) return unauthorized;
+  const auth = await requireRole("DONO", "ATENDENTE");
+  if (auth.response) return auth.response;
 
   const { searchParams } = new URL(request.url);
   const rawStatus = searchParams.get("status");

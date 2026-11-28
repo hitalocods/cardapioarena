@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { requireAdminApi } from "@/lib/auth";
+import { requireRole } from "@/lib/auth";
 import { isPushConfigured } from "@/lib/push";
 
 const subscribeSchema = z.object({
@@ -13,8 +13,8 @@ const subscribeSchema = z.object({
 });
 
 export async function POST(request: Request) {
-  const unauthorized = await requireAdminApi();
-  if (unauthorized) return unauthorized;
+  const auth = await requireRole("DONO", "ATENDENTE");
+  if (auth.response) return auth.response;
 
   if (!isPushConfigured()) {
     return NextResponse.json(

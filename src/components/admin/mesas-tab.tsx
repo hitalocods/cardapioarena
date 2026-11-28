@@ -128,11 +128,12 @@ export function MesasTab() {
             <Input
               id="qtd-mesas"
               type="number"
+              inputMode="numeric"
               min={0}
               max={200}
               value={quantidadeInput}
               onChange={(e) => setQuantidadeInput(e.target.value)}
-              className="w-40"
+              className="w-full sm:w-40"
               required
             />
           </div>

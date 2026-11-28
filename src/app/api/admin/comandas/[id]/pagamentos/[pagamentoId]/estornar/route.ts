@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { requireAdminApi } from "@/lib/auth";
+import { requireRole } from "@/lib/auth";
 import { loadComandaDetail, lockComandaForUpdate } from "@/lib/comandas";
 
 const estornarSchema = z.object({
@@ -24,8 +24,9 @@ export async function POST(
   request: Request,
   context: { params: Promise<{ id: string; pagamentoId: string }> }
 ) {
-  const unauthorized = await requireAdminApi();
-  if (unauthorized) return unauthorized;
+  const auth = await requireRole("DONO");
+  if (auth.response) return auth.response;
+  const executorRole = auth.role;
 
   const { id: comandaId, pagamentoId } = await context.params;
 
@@ -61,6 +62,7 @@ export async function POST(
           SET
             "status" = 'ESTORNADO'::"PagamentoStatus",
             "motivoEstorno" = ${parsed.data.motivo},
+            "estornadoPorPerfil" = ${executorRole}::"AdminPerfil",
             "updatedAt" = NOW()
           WHERE "id" = ${pagamentoId}
             AND "comandaId" = ${comandaId}

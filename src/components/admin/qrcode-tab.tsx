@@ -89,10 +89,10 @@ export function QrcodeTab() {
 
         <div className="max-w-xl">
           <Label htmlFor="qr-base-url">URL base dos QR Codes</Label>
-          <div className="mt-1.5 flex flex-wrap gap-2">
+          <div className="mt-1.5 flex flex-col gap-2 sm:flex-row">
             <Input
               id="qr-base-url"
-              className="flex-1 min-w-60"
+              className="min-w-0 w-full sm:flex-1"
               value={rawInputUrl}
               onChange={(e) => setCustomBaseUrl(e.target.value)}
               placeholder="https://cardapioarena-delta.vercel.app"
@@ -101,6 +101,7 @@ export function QrcodeTab() {
               type="button"
               variant="outline"
               onClick={() => setCustomBaseUrl(originUrl)}
+              className="shrink-0"
             >
               <Globe className="h-4 w-4" />
               Usar domínio atual

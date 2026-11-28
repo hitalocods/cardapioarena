@@ -2,7 +2,7 @@ import { NextResponse, after } from "next/server";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { requireAdminApi } from "@/lib/auth";
+import { requireRole } from "@/lib/auth";
 import { ensureOpenComandaForMesa } from "@/lib/comandas";
 import {
   buildGarcomPessoaKey,
@@ -53,8 +53,8 @@ class OutOfStockError extends Error {
 }
 
 export async function POST(request: Request) {
-  const unauthorized = await requireAdminApi();
-  if (unauthorized) return unauthorized;
+  const auth = await requireRole("DONO", "ATENDENTE");
+  if (auth.response) return auth.response;
 
   let body: unknown;
   try {

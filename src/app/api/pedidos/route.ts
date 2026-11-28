@@ -12,7 +12,7 @@ import { ensureOpenComandaForMesa } from "@/lib/comandas";
 const MAX_UNITS_PER_ITEM = 20;
 const MAX_TOTAL_UNITS_PER_ORDER = 30;
 const MAX_OPEN_BY_PHONE = 3;
-const MAX_OPEN_BY_IP = 15;
+const MAX_OPEN_BY_IP = 60;
 const MAX_OPEN_BY_MESA = 20;
 
 const createOrderSchema = z.object({

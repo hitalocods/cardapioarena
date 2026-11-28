@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { requireAdminApi } from "@/lib/auth";
+import { requireRole } from "@/lib/auth";
 
 const setMesasQuantitySchema = z.object({
   quantidade: z
@@ -12,8 +12,8 @@ const setMesasQuantitySchema = z.object({
 });
 
 export async function GET() {
-  const unauthorized = await requireAdminApi();
-  if (unauthorized) return unauthorized;
+  const auth = await requireRole("DONO");
+  if (auth.response) return auth.response;
 
   try {
     const mesas = await db.mesa.findMany({
@@ -33,8 +33,8 @@ export async function GET() {
 }
 
 export async function PUT(request: Request) {
-  const unauthorized = await requireAdminApi();
-  if (unauthorized) return unauthorized;
+  const auth = await requireRole("DONO");
+  if (auth.response) return auth.response;
 
   let body: unknown;
   try {

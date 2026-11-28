@@ -439,18 +439,20 @@ export function CardapioClient({
 
   return (
     <div
-      className={`mx-auto flex min-h-dvh w-full max-w-2xl flex-col px-4 pt-4 ${
+      className={`mx-auto flex min-h-dvh w-full max-w-2xl flex-col px-3 pt-[calc(0.75rem+env(safe-area-inset-top))] sm:px-4 sm:pt-4 ${
         isOrderMode
-          ? "pb-[calc(8.5rem+env(safe-area-inset-bottom))]"
+          ? totalUnits > 0
+            ? "pb-[calc(10rem+env(safe-area-inset-bottom))]"
+            : "pb-10"
           : "pb-10"
       }`}
     >
       {/* Cabeçalho fixo no topo mantendo Mesa N sempre visível */}
       {isOrderMode && mesaNumero !== undefined ? (
-        <div className="sticky top-2 z-20 mb-4">
-          <div className="glass-bar flex items-center justify-between gap-3 rounded-2xl px-4 py-3">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <span className="inline-flex shrink-0 items-center rounded-full bg-[var(--brand-primary)] px-3.5 py-1 text-sm font-black text-[var(--brand-primary-foreground)]">
+        <div className="sticky top-[calc(0.5rem+env(safe-area-inset-top))] z-20 mb-4">
+          <div className="glass-bar flex flex-wrap items-center justify-between gap-2 rounded-2xl px-3.5 py-2.5 sm:px-4 sm:py-3">
+            <div className="flex min-w-0 flex-1 items-center gap-2.5">
+              <span className="inline-flex shrink-0 items-center rounded-full bg-[var(--brand-primary)] px-3 py-1 text-xs font-black text-[var(--brand-primary-foreground)] sm:px-3.5 sm:text-sm">
                 Mesa {mesaNumero}
               </span>
               <span className="truncate text-sm font-semibold text-[var(--foreground)]">
@@ -461,7 +463,7 @@ export function CardapioClient({
               <button
                 type="button"
                 onClick={onChangeCustomer}
-                className="shrink-0 text-xs font-semibold text-[var(--muted-foreground)] underline underline-offset-2 hover:text-[var(--foreground)] cursor-pointer"
+                className="inline-flex min-h-11 shrink-0 items-center px-2 text-xs font-semibold text-[var(--muted-foreground)] underline underline-offset-2 hover:text-[var(--foreground)] cursor-pointer sm:min-h-0"
               >
                 Trocar dados
               </button>
@@ -502,10 +504,10 @@ export function CardapioClient({
         {lastOrder && (
           <Link
             href={`/pedido/${lastOrder.id}`}
-            className="mt-4 flex items-center justify-between rounded-2xl border border-[var(--brand-primary)]/50 bg-[var(--brand-primary-soft)]/80 px-4 py-2.5 text-sm font-semibold text-[var(--brand-primary-foreground)] transition-colors hover:bg-[var(--brand-primary-soft)]"
+            className="mt-4 flex min-h-11 flex-wrap items-center justify-between gap-2 rounded-2xl border border-[var(--brand-primary)]/50 bg-[var(--brand-primary-soft)]/80 px-4 py-2.5 text-sm font-semibold text-[var(--brand-primary-foreground)] transition-colors hover:bg-[var(--brand-primary-soft)]"
           >
             <span className="flex items-center gap-2">
-              <Clock className="h-4 w-4 text-[var(--brand-primary-strong)]" />
+              <Clock className="h-4 w-4 shrink-0 text-[var(--brand-primary-strong)]" />
               Acompanhar seu último pedido (#{lastOrder.numero})
             </span>
             <span className="text-xs underline">Ver status</span>
@@ -558,7 +560,7 @@ export function CardapioClient({
                 key={cat}
                 type="button"
                 onClick={() => setSelectedCategoria(cat)}
-                className={`shrink-0 rounded-full border px-4 py-2 text-xs font-bold transition cursor-pointer ${
+                className={`min-h-11 shrink-0 rounded-full border px-4 py-2 text-xs font-bold transition cursor-pointer sm:min-h-9 ${
                   active
                     ? "border-[var(--brand-primary-strong)] bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)] shadow-xs"
                     : "border-[var(--border)] bg-white/80 text-[var(--muted-foreground)] hover:bg-white hover:text-[var(--foreground)]"
@@ -618,12 +620,12 @@ export function CardapioClient({
                 return (
                   <article
                     key={produto.id}
-                    className={`glass-card flex items-center gap-4 p-3.5 transition-opacity ${
+                    className={`glass-card flex items-center gap-3 p-3 transition-opacity sm:gap-4 sm:p-3.5 ${
                       outOfStock ? "opacity-65" : ""
                     }`}
                   >
                     {/* Foto ou fundo da cor da Arena */}
-                    <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-2xl border border-[#a2cf9c]/60 bg-gradient-to-br from-[#eaf5e8] to-[#a2cf9c]/75">
+                    <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-2xl border border-[#a2cf9c]/60 bg-gradient-to-br from-[#eaf5e8] to-[#a2cf9c]/75 sm:h-24 sm:w-24">
                       {produto.foto ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
@@ -645,7 +647,7 @@ export function CardapioClient({
                     <div className="flex min-w-0 flex-1 flex-col justify-between gap-2">
                       <div>
                         <div className="flex items-start justify-between gap-2">
-                          <h3 className="text-base font-bold leading-snug text-[var(--foreground)]">
+                          <h3 className="break-words text-sm font-bold leading-snug text-[var(--foreground)] sm:text-base">
                             {produto.nome}
                           </h3>
                           {outOfStock && (
@@ -655,13 +657,13 @@ export function CardapioClient({
                           )}
                         </div>
                         {produto.descricao && (
-                          <p className="mt-0.5 line-clamp-2 text-xs text-[var(--muted-foreground)]">
+                          <p className="mt-0.5 break-words line-clamp-2 text-xs text-[var(--muted-foreground)]">
                             {produto.descricao}
                           </p>
                         )}
                       </div>
 
-                      <div className="flex items-center justify-between gap-2">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
                         <span className="text-base font-extrabold text-[var(--foreground)]">
                           {formatCurrency(produto.preco)}
                         </span>
@@ -681,12 +683,12 @@ export function CardapioClient({
                             Adicionar
                           </Button>
                         ) : (
-                          <div className="inline-flex items-center gap-1.5 rounded-full bg-[var(--brand-primary-soft)] p-1 border border-[var(--brand-primary)]/40">
+                          <div className="inline-flex items-center gap-1 rounded-full border border-[var(--brand-primary)]/40 bg-[var(--brand-primary-soft)] p-1">
                             <button
                               type="button"
                               onClick={() => handleQtyChange(produto, -1)}
                               aria-label={`Remover uma unidade de ${produto.nome}`}
-                              className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white text-[var(--foreground)] shadow-xs active:scale-95 cursor-pointer"
+                              className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-white text-[var(--foreground)] shadow-xs active:scale-95 cursor-pointer sm:h-9 sm:w-9"
                             >
                               <Minus className="h-4 w-4" />
                             </button>
@@ -698,7 +700,7 @@ export function CardapioClient({
                               onClick={() => handleQtyChange(produto, 1)}
                               disabled={!canAdd}
                               aria-label={`Adicionar mais uma unidade de ${produto.nome}`}
-                              className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)] shadow-xs active:scale-95 disabled:opacity-40 cursor-pointer"
+                              className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)] shadow-xs active:scale-95 disabled:opacity-40 cursor-pointer sm:h-9 sm:w-9"
                             >
                               <Plus className="h-4 w-4" />
                             </button>
@@ -802,9 +804,9 @@ export function CardapioClient({
                 {cartItems.map(({ produto, quantidade }) => (
                   <li
                     key={produto.id}
-                    className="flex items-center justify-between gap-2"
+                    className="flex items-start justify-between gap-2"
                   >
-                    <span className="truncate font-medium text-[var(--foreground)]">
+                    <span className="min-w-0 break-words font-medium text-[var(--foreground)]">
                       {quantidade}x {produto.nome}
                     </span>
                     <span className="shrink-0 font-semibold text-[var(--foreground)]">
@@ -952,12 +954,12 @@ export function CardapioClient({
                         {ped.itens.map((item) => (
                           <li
                             key={item.id}
-                            className="flex items-center justify-between gap-2"
+                            className="flex items-start justify-between gap-2"
                           >
-                            <span className="text-[var(--foreground)]">
+                            <span className="min-w-0 break-words text-[var(--foreground)]">
                               {item.quantidade}x {item.nomeSnapshot}
                             </span>
-                            <span className="flex items-center gap-2">
+                            <span className="flex shrink-0 items-center gap-2">
                               {ped.status !== "CANCELADO" && (
                                 <span
                                   className={`font-bold ${

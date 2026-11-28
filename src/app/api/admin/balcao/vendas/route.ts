@@ -1,8 +1,8 @@
 import { NextResponse, after } from "next/server";
-import { FormaPagamento, PedidoStatus, Prisma } from "@prisma/client";
+import { AdminPerfil, FormaPagamento, PedidoStatus, Prisma } from "@prisma/client";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { requireAdminApi } from "@/lib/auth";
+import { requireRole } from "@/lib/auth";
 import { sendNewOrderPush } from "@/lib/push";
 
 export interface BalcaoVendaDTO {
@@ -30,8 +30,10 @@ export interface BalcaoVendaDTO {
     forma: FormaPagamento;
     pagador: string | null;
     recebidoPor: string | null;
+    executadoPorPerfil?: AdminPerfil | null;
     status: "ATIVO" | "ESTORNADO";
     motivoEstorno: string | null;
+    estornadoPorPerfil?: AdminPerfil | null;
     createdAt: string;
   }>;
 }
@@ -130,8 +132,10 @@ function toBalcaoVendaDTO(comanda: {
     forma: FormaPagamento;
     pagador: string | null;
     recebidoPor: string | null;
+    executadoPorPerfil: AdminPerfil | null;
     status: "ATIVO" | "ESTORNADO";
     motivoEstorno: string | null;
+    estornadoPorPerfil: AdminPerfil | null;
     createdAt: Date;
   }>;
 }): BalcaoVendaDTO | null {
@@ -163,8 +167,10 @@ function toBalcaoVendaDTO(comanda: {
       forma: pag.forma,
       pagador: pag.pagador,
       recebidoPor: pag.recebidoPor,
+      executadoPorPerfil: pag.executadoPorPerfil,
       status: pag.status,
       motivoEstorno: pag.motivoEstorno,
+      estornadoPorPerfil: pag.estornadoPorPerfil,
       createdAt: pag.createdAt.toISOString(),
     })),
   };
@@ -192,8 +198,8 @@ async function findExistingVendaByKey(idempotencyKey: string) {
 }
 
 export async function GET(request: Request) {
-  const unauthorized = await requireAdminApi();
-  if (unauthorized) return unauthorized;
+  const auth = await requireRole("DONO", "ATENDENTE");
+  if (auth.response) return auth.response;
 
   const { searchParams } = new URL(request.url);
   const rawPeriodo = (searchParams.get("periodo") ?? "hoje") as PeriodoFiltro;
@@ -207,6 +213,13 @@ export async function GET(request: Request) {
   const periodo: PeriodoFiltro = validPeriodos.has(rawPeriodo)
     ? rawPeriodo
     : "hoje";
+
+  if (auth.role === "ATENDENTE" && periodo !== "hoje") {
+    return NextResponse.json(
+      { error: "Atendente pode consultar apenas as vendas de balcão de hoje." },
+      { status: 403 }
+    );
+  }
 
   try {
     const inicioPeriodo = getPeriodStartSP(periodo);
@@ -247,8 +260,9 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const unauthorized = await requireAdminApi();
-  if (unauthorized) return unauthorized;
+  const auth = await requireRole("DONO", "ATENDENTE");
+  if (auth.response) return auth.response;
+  const executorRole = auth.role;
 
   let body: unknown;
   try {
@@ -431,6 +445,7 @@ export async function POST(request: Request) {
               forma: pag.forma,
               pagador: nomeCliente,
               recebidoPor,
+              executadoPorPerfil: executorRole,
               status: "ATIVO",
               idempotencyKey: `${data.idempotencyKey}:pag:${idx}`,
             },

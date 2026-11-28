@@ -64,7 +64,7 @@ export function PrintableQrClient({
                   Arena Home Beach
                 </div>
 
-                <h2 className="mt-3 text-4xl font-black tracking-tight text-[var(--foreground)]">
+                <h2 className="mt-3 text-5xl font-black tracking-tight text-[var(--foreground)]">
                   Mesa {mesa.numero}
                 </h2>
 
@@ -79,6 +79,9 @@ export function PrintableQrClient({
 
                 <p className="text-sm font-bold text-[var(--foreground)]">
                   Aponte a câmera para pedir
+                </p>
+                <p className="mt-1.5 break-all font-mono text-xs font-semibold text-[var(--foreground)]/80">
+                  {mesaUrl}
                 </p>
                 <p className="mt-1 text-xs font-semibold tracking-wide text-[var(--muted-foreground)]">
                   Atlas Software · www.atlassoftware.org

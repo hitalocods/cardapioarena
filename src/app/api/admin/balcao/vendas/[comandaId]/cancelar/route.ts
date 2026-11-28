@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { requireAdminApi } from "@/lib/auth";
+import { requireRole } from "@/lib/auth";
 import { lockComandaForUpdate } from "@/lib/comandas";
 
 const cancelarBalcaoSchema = z.object({
@@ -24,8 +24,9 @@ export async function POST(
   request: Request,
   context: { params: Promise<{ comandaId: string }> }
 ) {
-  const unauthorized = await requireAdminApi();
-  if (unauthorized) return unauthorized;
+  const auth = await requireRole("DONO");
+  if (auth.response) return auth.response;
+  const executorRole = auth.role;
 
   const { comandaId } = await context.params;
 
@@ -75,6 +76,7 @@ export async function POST(
           SET
             "status" = 'CANCELADO'::"PedidoStatus",
             "motivoCancelamento" = ${motivo},
+            "canceladoPorPerfil" = ${executorRole}::"AdminPerfil",
             "updatedAt" = NOW()
           WHERE "id" = ${pedido.id}
             AND "status" <> 'CANCELADO'::"PedidoStatus"
@@ -92,6 +94,7 @@ export async function POST(
           SET
             "status" = 'ESTORNADO'::"PagamentoStatus",
             "motivoEstorno" = ${motivo},
+            "estornadoPorPerfil" = ${executorRole}::"AdminPerfil",
             "updatedAt" = NOW()
           WHERE "comandaId" = ${comandaId}
             AND "status" = 'ATIVO'::"PagamentoStatus"

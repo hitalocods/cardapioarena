@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { PedidoStatus } from "@prisma/client";
 import { db } from "@/lib/db";
-import { requireAdminApi } from "@/lib/auth";
+import { requireRole } from "@/lib/auth";
 import { OPEN_ORDER_STATUSES } from "@/lib/format";
 
 function getStartOfTodaySaoPaulo(): Date {
@@ -12,8 +12,8 @@ function getStartOfTodaySaoPaulo(): Date {
 }
 
 export async function GET() {
-  const unauthorized = await requireAdminApi();
-  if (unauthorized) return unauthorized;
+  const auth = await requireRole("DONO");
+  if (auth.response) return auth.response;
 
   try {
     const inicioHoje = getStartOfTodaySaoPaulo();

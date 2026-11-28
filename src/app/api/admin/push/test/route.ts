@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-import { requireAdminApi } from "@/lib/auth";
+import { requireRole } from "@/lib/auth";
 import { isPushConfigured, sendPushToAllAdmins } from "@/lib/push";
 
 export async function POST() {
-  const unauthorized = await requireAdminApi();
-  if (unauthorized) return unauthorized;
+  const auth = await requireRole("DONO");
+  if (auth.response) return auth.response;
 
   if (!isPushConfigured()) {
     return NextResponse.json(

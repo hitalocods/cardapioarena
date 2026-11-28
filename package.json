@@ -9,6 +9,7 @@
     "lint": "eslint",
     "postinstall": "prisma generate",
     "db:seed": "tsx --env-file=.env prisma/seed.ts",
+    "db:reset-operacao": "tsx --env-file=.env scripts/reset-operacao.ts",
     "test:concurrency": "tsx --env-file=.env scripts/test-concurrency.ts"
   },
   "dependencies": {

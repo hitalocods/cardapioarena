@@ -13,6 +13,8 @@ import {
   XCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { LiveStatusBar } from "@/components/admin/live-status-bar";
+import { useWakeLock } from "@/hooks/use-wake-lock";
 import {
   formatCurrency,
   formatTimeBR,
@@ -76,6 +78,9 @@ export function PedidosTab({
   const [confirmCancelId, setConfirmCancelId] = React.useState<string | null>(
     null
   );
+  const [lastUpdatedAt, setLastUpdatedAt] = React.useState<number | null>(null);
+  const { supported: wakeLockSupported, active: wakeLockActive } =
+    useWakeLock(true);
 
   const [soundEnabled, setSoundEnabled] = React.useState(false);
   const audioCtxRef = React.useRef<AudioContext | null>(null);
@@ -101,6 +106,7 @@ export function PedidosTab({
 
         const data = (await res.json()) as { pedidos: AdminPedido[] };
         setError(null);
+        setLastUpdatedAt(Date.now());
         setPedidos(data.pedidos);
         onCountChange?.(data.pedidos.length);
 
@@ -265,6 +271,13 @@ export function PedidosTab({
         </div>
       </div>
 
+      <LiveStatusBar
+        lastUpdatedAt={lastUpdatedAt}
+        onRetry={() => void fetchPedidos(true)}
+        wakeLockSupported={wakeLockSupported}
+        wakeLockActive={wakeLockActive}
+      />
+
       {error && (
         <div className="rounded-2xl bg-[var(--status-cancelado-bg)] px-4 py-3 text-sm font-semibold text-[var(--status-cancelado-fg)]">
           {error}
@@ -278,7 +291,8 @@ export function PedidosTab({
       )}
 
       {loading ? (
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <div className="glass-card h-64 animate-pulse" />
           <div className="glass-card h-64 animate-pulse" />
           <div className="glass-card h-64 animate-pulse" />
         </div>
@@ -293,7 +307,7 @@ export function PedidosTab({
           </p>
         </div>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {pedidos.map((pedido) => {
             const badgeStyle = PEDIDO_STATUS_STYLES[pedido.status];
             const isBusy = updatingId === pedido.id;
@@ -302,19 +316,19 @@ export function PedidosTab({
             return (
               <article
                 key={pedido.id}
-                className="glass-card flex flex-col justify-between gap-4 p-5 sm:p-6"
+                className="glass-card flex flex-col justify-between gap-4 p-4 sm:p-6"
               >
-                <div>
+                <div className="min-w-0">
                   {/* Topo do card com MESA N em destaque */}
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <div className="inline-flex items-center rounded-2xl bg-[var(--brand-primary)] px-4 py-1.5 text-2xl font-black tracking-tight text-[var(--brand-primary-foreground)] shadow-xs">
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="inline-flex items-center rounded-2xl bg-[var(--brand-primary)] px-4 py-1.5 text-xl font-black tracking-tight text-[var(--brand-primary-foreground)] shadow-xs sm:text-2xl">
                         {pedido.mesaNumero !== null
                           ? `MESA ${pedido.mesaNumero}`
                           : "BALCÃO"}
                       </div>
-                      <div className="mt-2 flex flex-wrap items-center gap-2">
-                        <span className="text-lg font-extrabold text-[var(--foreground)]">
+                      <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1">
+                        <span className="break-words text-lg font-extrabold text-[var(--foreground)]">
                           {pedido.nomeCliente}
                         </span>
                         <span className="text-sm font-semibold text-[var(--muted-foreground)]">
@@ -330,7 +344,7 @@ export function PedidosTab({
                     </div>
 
                     <span
-                      className="rounded-full px-4 py-1.5 text-sm font-extrabold"
+                      className="shrink-0 rounded-full px-3.5 py-1.5 text-xs font-extrabold sm:px-4 sm:text-sm"
                       style={{
                         backgroundColor: badgeStyle.bg,
                         color: badgeStyle.fg,
@@ -341,19 +355,19 @@ export function PedidosTab({
                   </div>
 
                   {/* Itens com texto grande */}
-                  <ul className="mt-4 flex flex-col gap-2 rounded-2xl bg-[var(--surface-subtle)] p-4 border border-[var(--border)]">
+                  <ul className="mt-4 flex flex-col gap-2 rounded-2xl border border-[var(--border)] bg-[var(--surface-subtle)] p-3.5 sm:p-4">
                     {pedido.itens.map((item) => (
                       <li
                         key={item.id}
-                        className="flex items-center justify-between gap-2 text-lg font-bold text-[var(--foreground)]"
+                        className="flex items-start justify-between gap-2 text-base font-bold text-[var(--foreground)] sm:text-lg"
                       >
-                        <span>
-                          <span className="mr-1.5 inline-block rounded-lg bg-[var(--brand-primary)] px-2 py-0.5 text-base font-black text-[var(--brand-primary-foreground)]">
+                        <span className="min-w-0 break-words">
+                          <span className="mr-1.5 inline-block rounded-lg bg-[var(--brand-primary)] px-2 py-0.5 text-sm font-black text-[var(--brand-primary-foreground)] sm:text-base">
                             {item.quantidade}x
                           </span>
                           {item.nomeSnapshot}
                         </span>
-                        <span className="text-base font-semibold text-[var(--muted-foreground)]">
+                        <span className="shrink-0 text-sm font-semibold text-[var(--muted-foreground)] sm:text-base">
                           {formatCurrency(item.precoSnapshot * item.quantidade)}
                         </span>
                       </li>
@@ -361,7 +375,7 @@ export function PedidosTab({
                   </ul>
 
                   {pedido.observacao && (
-                    <div className="mt-3 rounded-2xl bg-[var(--status-preparando-bg)] px-4 py-3 text-base font-semibold text-[var(--status-preparando-fg)]">
+                    <div className="mt-3 break-words rounded-2xl bg-[var(--status-preparando-bg)] px-4 py-3 text-sm font-semibold text-[var(--status-preparando-fg)] sm:text-base">
                       Obs: {pedido.observacao}
                     </div>
                   )}

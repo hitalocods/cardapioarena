@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { Bell, BellOff, Download, Loader2, Send, Share } from "lucide-react";
+import type { AdminRole } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 
@@ -24,7 +25,11 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array<ArrayBuffer> {
 
 const emptySubscribe = () => () => {};
 
-export function AdminPwaControls() {
+export function AdminPwaControls({
+  role = "DONO",
+}: {
+  role?: AdminRole;
+}) {
   const [deferredPrompt, setDeferredPrompt] =
     React.useState<BeforeInstallPromptEvent | null>(null);
   const [installedNow, setInstalledNow] = React.useState(false);
@@ -263,15 +268,17 @@ export function AdminPwaControls() {
           </Button>
         ) : (
           <>
-            <Button
-              variant="secondary"
-              size="sm"
-              disabled={pushLoading}
-              onClick={() => void handleTestPush()}
-            >
-              <Send className="h-4 w-4" />
-              Testar push
-            </Button>
+            {role === "DONO" && (
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={pushLoading}
+                onClick={() => void handleTestPush()}
+              >
+                <Send className="h-4 w-4" />
+                Testar push
+              </Button>
+            )}
             <Button
               variant="outline"
               size="sm"

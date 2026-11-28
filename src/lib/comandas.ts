@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import type {
+  AdminPerfil,
   ComandaStatus,
   ComandaTipo,
   FormaPagamento,
@@ -80,8 +81,10 @@ export interface ComandaPagamentoDTO {
   forma: FormaPagamento;
   pagador: string | null;
   recebidoPor: string | null;
+  executadoPorPerfil: AdminPerfil | null;
   status: PagamentoStatus;
   motivoEstorno: string | null;
+  estornadoPorPerfil: AdminPerfil | null;
   createdAt: string;
   itensCount: number;
 }
@@ -389,8 +392,10 @@ export function buildComandaDetailDTO(
       forma: pag.forma,
       pagador: pag.pagador,
       recebidoPor: pag.recebidoPor,
+      executadoPorPerfil: pag.executadoPorPerfil,
       status: pag.status,
       motivoEstorno: pag.motivoEstorno,
+      estornadoPorPerfil: pag.estornadoPorPerfil,
       createdAt: pag.createdAt.toISOString(),
       itensCount: pag._count?.itens ?? pag.itens?.length ?? 0,
     }));

@@ -9,6 +9,7 @@ import {
   XCircle,
 } from "lucide-react";
 import type { BalcaoVendaDTO } from "@/app/api/admin/balcao/vendas/route";
+import type { AdminRole } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog } from "@/components/ui/dialog";
@@ -27,9 +28,11 @@ type PeriodoBalcao = "hoje" | "7d" | "30d";
 export function BalcaoTab({
   refreshKey = 0,
   onNewSaleClick,
+  role = "DONO",
 }: {
   refreshKey?: number;
   onNewSaleClick?: () => void;
+  role?: AdminRole;
 }) {
   const [periodo, setPeriodo] = React.useState<PeriodoBalcao>("hoje");
   const [vendas, setVendas] = React.useState<BalcaoVendaDTO[]>([]);
@@ -145,34 +148,36 @@ export function BalcaoTab({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <div className="flex rounded-2xl border border-[var(--border)] bg-[var(--surface-subtle)] p-1">
-            {(
-              [
-                { value: "hoje", label: "Hoje" },
-                { value: "7d", label: "7 dias" },
-                { value: "30d", label: "30 dias" },
-              ] as Array<{ value: PeriodoBalcao; label: string }>
-            ).map((opt) => {
-              const active = periodo === opt.value;
-              return (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => {
-                    setLoading(true);
-                    setPeriodo(opt.value);
-                  }}
-                  className={`rounded-xl px-3 py-1.5 text-xs font-bold transition cursor-pointer ${
-                    active
-                      ? "bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)] shadow-xs"
-                      : "text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
-                  }`}
-                >
-                  {opt.label}
-                </button>
-              );
-            })}
-          </div>
+          {role === "DONO" && (
+            <div className="flex rounded-2xl border border-[var(--border)] bg-[var(--surface-subtle)] p-1">
+              {(
+                [
+                  { value: "hoje", label: "Hoje" },
+                  { value: "7d", label: "7 dias" },
+                  { value: "30d", label: "30 dias" },
+                ] as Array<{ value: PeriodoBalcao; label: string }>
+              ).map((opt) => {
+                const active = periodo === opt.value;
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => {
+                      setLoading(true);
+                      setPeriodo(opt.value);
+                    }}
+                    className={`min-h-11 rounded-xl px-3 py-1.5 text-xs font-bold transition cursor-pointer sm:min-h-9 ${
+                      active
+                        ? "bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)] shadow-xs"
+                        : "text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
+          )}
 
           <Button
             variant="outline"
@@ -246,12 +251,12 @@ export function BalcaoTab({
                 }`}
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
+                  <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="inline-flex items-center rounded-xl bg-[var(--brand-primary)] px-2.5 py-0.5 text-xs font-black text-[var(--brand-primary-foreground)]">
                         BALCÃO #{venda.numero}
                       </span>
-                      <span className="text-base font-extrabold text-[var(--foreground)]">
+                      <span className="break-words text-base font-extrabold text-[var(--foreground)]">
                         {venda.nomeCliente}
                       </span>
                       <span className="text-xs font-semibold text-[var(--muted-foreground)]">
@@ -270,25 +275,25 @@ export function BalcaoTab({
                       )}
                     </div>
 
-                    <p className="mt-1.5 text-sm font-semibold text-[var(--foreground)]">
+                    <p className="mt-1.5 break-words text-sm font-semibold text-[var(--foreground)]">
                       {venda.itens
                         .map((i) => `${i.quantidade}x ${i.nomeSnapshot}`)
                         .join(" · ")}
                     </p>
 
-                    <p className="mt-1 text-xs text-[var(--muted-foreground)]">
+                    <p className="mt-1 break-words text-xs text-[var(--muted-foreground)]">
                       Pagamento: <strong>{formasResumo}</strong>
                       {recebidoPor ? ` · Recebido por: ${recebidoPor}` : ""}
                     </p>
 
                     {venda.observacao && (
-                      <p className="mt-1 text-xs text-[var(--muted-foreground)]">
+                      <p className="mt-1 break-words text-xs text-[var(--muted-foreground)]">
                         Obs: {venda.observacao}
                       </p>
                     )}
 
                     {venda.cancelada && venda.motivoCancelamento && (
-                      <p className="mt-1 text-xs font-semibold text-[var(--status-cancelado-fg)]">
+                      <p className="mt-1 break-words text-xs font-semibold text-[var(--status-cancelado-fg)]">
                         Motivo do cancelamento: {venda.motivoCancelamento}
                       </p>
                     )}
@@ -305,7 +310,7 @@ export function BalcaoTab({
                       {formatCurrency(venda.total)}
                     </span>
 
-                    {!venda.cancelada && (
+                    {!venda.cancelada && role === "DONO" && (
                       <Button
                         variant="outline"
                         size="sm"

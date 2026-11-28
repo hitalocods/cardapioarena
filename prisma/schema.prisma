@@ -43,6 +43,11 @@ enum PagamentoStatus {
   ESTORNADO
 }
 
+enum AdminPerfil {
+  DONO
+  ATENDENTE
+}
+
 model Produto {
   id              String       @id @default(cuid())
   nome            String
@@ -85,6 +90,7 @@ model Comanda {
   pediuContaEm             DateTime?
   pediuContaDetalhes       String?
   motivoFechamentoPendente String?
+  fechadaPorPerfil         AdminPerfil?
   createdAt                DateTime      @default(now())
   updatedAt                DateTime      @updatedAt
   pedidos                  Pedido[]
@@ -108,6 +114,7 @@ model Pedido {
   observacao         String?
   lancadoPor         String?
   motivoCancelamento String?
+  canceladoPorPerfil AdminPerfil?
   status             PedidoStatus @default(RECEBIDO)
   total              Int          // Total em centavos
   ip                 String
@@ -129,11 +136,13 @@ model Pagamento {
   comanda        Comanda         @relation(fields: [comandaId], references: [id], onDelete: Cascade)
   valor          Int             // Valor devido em centavos
   forma          FormaPagamento
-  pagador        String?
-  recebidoPor    String?
-  status         PagamentoStatus @default(ATIVO)
-  motivoEstorno  String?
-  idempotencyKey String          @unique
+  pagador            String?
+  recebidoPor        String?
+  executadoPorPerfil AdminPerfil?
+  status             PagamentoStatus @default(ATIVO)
+  motivoEstorno      String?
+  estornadoPorPerfil AdminPerfil?
+  idempotencyKey     String          @unique
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
   itens          ItemPedido[]

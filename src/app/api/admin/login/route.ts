@@ -7,7 +7,7 @@ import {
   isAdminAuthConfigured,
   isLoginRateLimited,
   recordFailedLoginAttempt,
-  verifyAdminPassword,
+  resolveAdminRoleByPassword,
 } from "@/lib/auth";
 import { getClientIp } from "@/lib/ip";
 
@@ -50,15 +50,16 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Informe a senha." }, { status: 400 });
   }
 
-  if (!verifyAdminPassword(parsed.data.password)) {
+  const role = resolveAdminRoleByPassword(parsed.data.password);
+  if (!role) {
     await recordFailedLoginAttempt(ip);
     return NextResponse.json({ error: "Senha incorreta." }, { status: 401 });
   }
 
   await clearLoginAttempts(ip);
-  const token = createAdminSessionToken();
+  const token = createAdminSessionToken(role);
 
-  const response = NextResponse.json({ ok: true });
+  const response = NextResponse.json({ ok: true, role });
   response.cookies.set(ADMIN_COOKIE_NAME, token, {
     httpOnly: true,
     sameSite: "lax",

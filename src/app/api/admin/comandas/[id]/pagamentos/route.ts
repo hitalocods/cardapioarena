@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { FormaPagamento, Prisma } from "@prisma/client";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { requireAdminApi } from "@/lib/auth";
+import { requireRole } from "@/lib/auth";
 import {
   computeComandaTotals,
   loadComandaDetail,
@@ -114,8 +114,9 @@ export async function POST(
   request: Request,
   context: { params: Promise<{ id: string }> }
 ) {
-  const unauthorized = await requireAdminApi();
-  if (unauthorized) return unauthorized;
+  const auth = await requireRole("DONO", "ATENDENTE");
+  if (auth.response) return auth.response;
+  const executorRole = auth.role;
 
   const { id: comandaId } = await context.params;
 
@@ -281,6 +282,7 @@ export async function POST(
               forma: data.forma,
               pagador: nomePessoa,
               recebidoPor,
+              executadoPorPerfil: executorRole,
               status: "ATIVO",
               idempotencyKey: data.idempotencyKey,
             },
@@ -340,6 +342,7 @@ export async function POST(
               forma: data.forma,
               pagador: data.pagador?.trim() || null,
               recebidoPor,
+              executadoPorPerfil: executorRole,
               status: "ATIVO",
               idempotencyKey: data.idempotencyKey,
             },
@@ -372,6 +375,7 @@ export async function POST(
               forma: data.forma,
               pagador: data.pagador?.trim() || null,
               recebidoPor,
+              executadoPorPerfil: executorRole,
               status: "ATIVO",
               idempotencyKey: data.idempotencyKey,
             },
@@ -385,6 +389,7 @@ export async function POST(
               forma: data.forma,
               pagador: data.pagador?.trim() || "Saldo total da mesa",
               recebidoPor,
+              executadoPorPerfil: executorRole,
               status: "ATIVO",
               idempotencyKey: data.idempotencyKey,
             },
@@ -429,6 +434,7 @@ export async function POST(
                   cota.pagador?.trim() ||
                   `Divisão ${idx + 1}/${data.numeroPessoas}`,
                 recebidoPor,
+                executadoPorPerfil: executorRole,
                 status: "ATIVO",
                 idempotencyKey: `${data.idempotencyKey}:${idx}`,
               },

@@ -267,7 +267,7 @@ export function ResumoTab({
                   key={item.value}
                   type="button"
                   onClick={() => handleSelectPeriodo(item.value)}
-                  className={`rounded-xl px-3 py-1.5 text-xs font-bold transition cursor-pointer ${
+                  className={`min-h-11 rounded-xl px-3 py-1.5 text-xs font-bold transition cursor-pointer sm:min-h-9 ${
                     active
                       ? "bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)] shadow-xs"
                       : "text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
@@ -450,7 +450,35 @@ export function ResumoTab({
               </div>
             </div>
 
-            <div className="overflow-x-auto rounded-2xl border border-[var(--border)] bg-[var(--surface-subtle)]">
+            {/* Cards empilhados no celular para formas de pagamento */}
+            <div className="flex flex-col gap-2 md:hidden">
+              {FORMAS_PAGAMENTO_ORDEM.map((forma) => {
+                const mesasVal = data.recebidoMesasPorForma[forma] ?? 0;
+                const balcaoVal = data.recebidoBalcaoPorForma[forma] ?? 0;
+                const geralVal = data.recebidoPorForma[forma] ?? 0;
+                return (
+                  <div
+                    key={forma}
+                    className="rounded-2xl border border-[var(--border)] bg-[var(--surface-subtle)] p-3.5"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-sm font-extrabold text-[var(--foreground)]">
+                        {FORMA_PAGAMENTO_LABELS[forma]}
+                      </span>
+                      <span className="text-base font-black text-[var(--foreground)]">
+                        {formatCurrency(geralVal)}
+                      </span>
+                    </div>
+                    <div className="mt-1 flex items-center justify-between text-xs text-[var(--muted-foreground)]">
+                      <span>Mesas: {formatCurrency(mesasVal)}</span>
+                      <span>Balcão: {formatCurrency(balcaoVal)}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="hidden overflow-x-auto rounded-2xl border border-[var(--border)] bg-[var(--surface-subtle)] md:block">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-[var(--border)] text-left text-xs uppercase tracking-wider text-[var(--muted-foreground)]">
@@ -693,9 +721,9 @@ export function ResumoTab({
                       key={item.id}
                       className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-[var(--surface-subtle)] px-3.5 py-2.5 text-sm"
                     >
-                      <div className="min-w-0">
+                      <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-1.5">
-                          <span className="font-bold text-[var(--foreground)]">
+                          <span className="break-words font-bold text-[var(--foreground)]">
                             {item.nome}
                           </span>
                           {item.status === "ESGOTADO" && (
@@ -719,14 +747,14 @@ export function ResumoTab({
                         <Button
                           variant="outline"
                           size="icon"
-                          className="h-8 w-8 rounded-lg"
+                          className="h-11 w-11 rounded-xl md:h-9 md:w-9"
                           disabled={
                             stockBusyId === item.id || item.estoque <= 0
                           }
                           onClick={() => void handleQuickStockDelta(item, -1)}
                           aria-label={`Diminuir estoque de ${item.nome}`}
                         >
-                          <Minus className="h-3.5 w-3.5" />
+                          <Minus className="h-4 w-4" />
                         </Button>
                         <span className="min-w-10 text-center text-sm font-black text-[var(--foreground)]">
                           {item.estoque}
@@ -734,12 +762,12 @@ export function ResumoTab({
                         <Button
                           variant="outline"
                           size="icon"
-                          className="h-8 w-8 rounded-lg"
+                          className="h-11 w-11 rounded-xl md:h-9 md:w-9"
                           disabled={stockBusyId === item.id}
                           onClick={() => void handleQuickStockDelta(item, 1)}
                           aria-label={`Aumentar estoque de ${item.nome}`}
                         >
-                          <Plus className="h-3.5 w-3.5" />
+                          <Plus className="h-4 w-4" />
                         </Button>
                       </div>
                     </li>
@@ -908,7 +936,7 @@ export function ResumoTab({
                             {formatDateTimeBR(pedido.createdAt)}
                           </span>
                         </div>
-                        <p className="truncate text-xs text-[var(--muted-foreground)]">
+                        <p className="break-words text-xs text-[var(--muted-foreground)]">
                           <Package className="mr-1 inline h-3 w-3" />
                           {resumoItens}
                         </p>

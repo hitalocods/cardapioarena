@@ -119,12 +119,12 @@ export function PedidoTracker({
   const currentStepIdx = STEP_INDEX[pedido.status];
 
   return (
-    <div className="mx-auto flex min-h-dvh w-full max-w-xl flex-col gap-4 px-4 py-6">
+    <div className="mx-auto flex min-h-dvh w-full max-w-xl flex-col gap-4 px-3 pb-[calc(1.5rem+env(safe-area-inset-bottom))] pt-[calc(1rem+env(safe-area-inset-top))] sm:px-4 sm:py-6">
       {/* Topo */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <Link
           href={pedido.mesaNumero !== null ? `/mesa/${pedido.mesaNumero}` : "/"}
-          className="inline-flex items-center gap-1.5 rounded-full bg-white/80 px-3.5 py-2 text-sm font-semibold text-[var(--foreground)] border border-[var(--border)] shadow-xs hover:bg-white"
+          className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-[var(--border)] bg-white/80 px-3.5 py-2 text-sm font-semibold text-[var(--foreground)] shadow-xs hover:bg-white sm:min-h-9"
         >
           <ArrowLeft className="h-4 w-4" />
           Voltar ao cardápio
@@ -134,7 +134,7 @@ export function PedidoTracker({
           <button
             type="button"
             onClick={() => void fetchLatest()}
-            className="inline-flex items-center gap-1.5 rounded-full bg-white/80 px-3 py-2 text-xs font-semibold text-[var(--muted-foreground)] border border-[var(--border)] hover:bg-white cursor-pointer"
+            className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-[var(--border)] bg-white/80 px-3.5 py-2 text-xs font-semibold text-[var(--muted-foreground)] hover:bg-white cursor-pointer sm:min-h-9"
           >
             <RefreshCw
               className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`}
@@ -145,18 +145,18 @@ export function PedidoTracker({
       </div>
 
       {/* Card principal */}
-      <section className="glass-card p-6">
+      <section className="glass-card p-5 sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
+          <div className="min-w-0 flex-1">
             <p className="text-xs font-bold uppercase tracking-wider text-[var(--muted-foreground)]">
               Arena Home Beach
             </p>
-            <h1 className="mt-1 text-3xl font-extrabold tracking-tight text-[var(--foreground)]">
+            <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-[var(--foreground)] sm:text-3xl">
               Pedido #{pedido.numero}
             </h1>
-            <p className="mt-1 flex items-center gap-1.5 text-sm text-[var(--muted-foreground)]">
-              <MapPin className="h-4 w-4 text-[var(--brand-primary-strong)]" />
-              <span>
+            <p className="mt-1 flex items-start gap-1.5 text-sm text-[var(--muted-foreground)]">
+              <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-[var(--brand-primary-strong)]" />
+              <span className="min-w-0 break-words">
                 {pedido.nomeCliente} ·{" "}
                 <strong>
                   {pedido.mesaNumero !== null
@@ -248,12 +248,12 @@ export function PedidoTracker({
           {pedido.itens.map((item) => (
             <li
               key={item.id}
-              className="flex items-center justify-between gap-2"
+              className="flex items-start justify-between gap-2"
             >
-              <span className="font-medium text-[var(--foreground)]">
+              <span className="min-w-0 break-words font-medium text-[var(--foreground)]">
                 {item.quantidade}x {item.nomeSnapshot}
               </span>
-              <span className="font-semibold text-[var(--foreground)]">
+              <span className="shrink-0 font-semibold text-[var(--foreground)]">
                 {formatCurrency(item.precoSnapshot * item.quantidade)}
               </span>
             </li>
@@ -261,7 +261,7 @@ export function PedidoTracker({
         </ul>
 
         {pedido.observacao && (
-          <div className="mt-4 rounded-2xl bg-[var(--surface-subtle)] p-3 text-sm text-[var(--foreground)]">
+          <div className="mt-4 break-words rounded-2xl bg-[var(--surface-subtle)] p-3 text-sm text-[var(--foreground)]">
             <span className="font-semibold">Observação:</span>{" "}
             {pedido.observacao}
           </div>

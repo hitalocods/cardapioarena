@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { ComandaTipo, FormaPagamento, PedidoStatus } from "@prisma/client";
 import { db } from "@/lib/db";
-import { requireAdminApi } from "@/lib/auth";
+import { requireRole } from "@/lib/auth";
 
 export type ResumoPeriodo = "hoje" | "7d" | "30d" | "mes" | "tudo";
 
@@ -64,8 +64,8 @@ function emptyFormaRecord(): Record<FormaPagamento, number> {
 }
 
 export async function GET(request: Request) {
-  const unauthorized = await requireAdminApi();
-  if (unauthorized) return unauthorized;
+  const auth = await requireRole("DONO");
+  if (auth.response) return auth.response;
 
   const { searchParams } = new URL(request.url);
   const rawPeriodo = (searchParams.get("periodo") ?? "hoje") as ResumoPeriodo;

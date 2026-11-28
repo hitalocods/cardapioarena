@@ -19,11 +19,11 @@ const buttonVariants = cva(
           "bg-[var(--destructive)] text-[var(--destructive-foreground)] hover:opacity-90 shadow-sm",
       },
       size: {
-        default: "h-11 px-5 py-2.5",
-        sm: "h-9 rounded-xl px-3.5 text-xs",
-        lg: "h-13 rounded-2xl px-6 text-base",
-        xl: "h-14 rounded-2xl px-6 text-lg font-bold",
-        icon: "h-10 w-10 rounded-xl",
+        default: "min-h-11 px-5 py-2.5",
+        sm: "min-h-11 sm:min-h-9 h-auto sm:h-9 rounded-xl px-3.5 py-2 sm:py-0 text-xs",
+        lg: "min-h-13 rounded-2xl px-6 text-base",
+        xl: "min-h-14 rounded-2xl px-6 text-lg font-bold",
+        icon: "h-11 w-11 sm:h-10 sm:w-10 rounded-xl",
       },
     },
     defaultVariants: {

@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { QRCodeSVG } from "qrcode.react";
-import { ArrowLeft, Printer, Sun } from "lucide-react";
+import { ArrowLeft, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { resolveQrBaseUrl } from "@/lib/qr-url";
 
@@ -59,12 +59,14 @@ export function PrintableQrClient({
                 key={mesa.id}
                 className="glass-card print-card flex break-inside-avoid flex-col items-center rounded-3xl border-2 border-dashed border-[var(--border)] p-6 text-center"
               >
-                <div className="inline-flex items-center gap-1.5 rounded-full bg-[var(--brand-primary-soft)] px-3.5 py-1 text-xs font-bold uppercase tracking-wider text-[var(--brand-primary-foreground)]">
-                  <Sun className="h-3.5 w-3.5 text-[var(--brand-primary-strong)]" />
-                  Arena Home Beach
-                </div>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="/logo.png"
+                  alt="Arena Home Beach"
+                  className="h-16 w-auto object-contain"
+                />
 
-                <h2 className="mt-3 text-5xl font-black tracking-tight text-[var(--foreground)]">
+                <h2 className="mt-2 text-5xl font-black tracking-tight text-[var(--foreground)]">
                   Mesa {mesa.numero}
                 </h2>
 

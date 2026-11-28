@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Lock, Sun } from "lucide-react";
+import { Loader2, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -44,16 +44,20 @@ export default function AdminLoginPage() {
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center px-4 py-8">
       <div className="glass-card p-6 sm:p-8">
-        <div className="inline-flex items-center gap-1.5 rounded-full bg-[var(--brand-primary-soft)] px-3 py-1 text-xs font-semibold text-[var(--brand-primary-foreground)]">
-          <Sun className="h-3.5 w-3.5 text-[var(--brand-primary-strong)]" />
-          Arena Home Beach
+        <div className="mx-auto mb-3 flex h-20 w-20 items-center justify-center overflow-hidden rounded-full border border-[var(--brand-primary-strong)]/35 bg-white p-1.5 shadow-xs">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/logo.png"
+            alt="Arena Home Beach"
+            className="h-full w-full object-contain"
+          />
         </div>
 
-        <h1 className="mt-3 text-2xl font-extrabold tracking-tight text-[var(--foreground)]">
+        <h1 className="mt-2 text-center text-2xl font-extrabold tracking-tight text-[var(--foreground)]">
           Painel do Bar / Admin
         </h1>
-        <p className="mt-1 text-sm text-[var(--muted-foreground)]">
-          Digite a senha de administrador para gerenciar pedidos e o cardápio.
+        <p className="mt-1 text-center text-sm text-[var(--muted-foreground)]">
+          Digite a senha para gerenciar pedidos, comandas e o cardápio.
         </p>
 
         <form onSubmit={handleSubmit} className="mt-6 flex flex-col gap-4">

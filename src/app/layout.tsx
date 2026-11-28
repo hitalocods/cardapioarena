@@ -16,6 +16,10 @@ export const metadata: Metadata = {
   title: "Cardápio Arena Home Beach",
   description:
     "Peça bebidas e lanches direto da sua quadra ou mesa na Arena Home Beach.",
+  icons: {
+    icon: "/admin-icons/icon-192.png",
+    apple: "/admin-icons/apple-touch-icon-180.png",
+  },
 };
 
 export const viewport: Viewport = {

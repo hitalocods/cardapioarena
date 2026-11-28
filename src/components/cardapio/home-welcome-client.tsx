@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -226,18 +225,6 @@ export function HomeWelcomeClient({
             </p>
           </form>
         )}
-
-        <div className="mt-5 border-t border-[var(--border)] pt-4 sm:mt-6">
-          <Link href="/admin" className="block w-full">
-            <Button
-              type="button"
-              variant="secondary"
-              className="h-11 w-full text-sm font-semibold"
-            >
-              Painel Administrativo
-            </Button>
-          </Link>
-        </div>
       </div>
     </main>
   );

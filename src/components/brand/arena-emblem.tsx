@@ -6,7 +6,7 @@ export function ArenaEmblem({ className }: { className?: string }) {
     <img
       src="/logo.png"
       alt="Arena Home Beach"
-      className={cn("h-full w-full object-contain p-1.5", className)}
+      className={cn("h-full w-full object-contain p-[15%]", className)}
     />
   );
 }

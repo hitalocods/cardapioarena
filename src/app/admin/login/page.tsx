@@ -44,7 +44,7 @@ export default function AdminLoginPage() {
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center px-4 py-8">
       <div className="glass-card p-6 sm:p-8">
-        <div className="mx-auto mb-3 flex h-20 w-20 items-center justify-center overflow-hidden rounded-full border border-[var(--brand-primary-strong)]/35 bg-white p-1.5 shadow-xs">
+        <div className="mx-auto mb-3 flex h-20 w-20 items-center justify-center overflow-hidden rounded-full border border-[var(--brand-primary-strong)]/35 bg-white p-[15%] shadow-xs">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/logo.png"
